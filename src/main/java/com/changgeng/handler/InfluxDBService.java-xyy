@@ -1,0 +1,227 @@
+package com.changgeng.handler;
+
+import com.changgeng.config.InfluxDBConfig;
+import lombok.extern.java.Log;
+import okhttp3.OkHttpClient;
+import org.influxdb.InfluxDB;
+import org.influxdb.InfluxDBException;
+import org.influxdb.InfluxDBFactory;
+import org.influxdb.dto.BatchPoints;
+import org.influxdb.dto.Point;
+import org.influxdb.dto.Query;
+import org.influxdb.dto.QueryResult;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.util.*;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @Author henry
+ * @Date 2024/1/17 9:26
+ * @Version 1.0
+ */
+
+@Service
+@Log
+public class InfluxDBService {
+    @Autowired
+    InfluxDBConfig influxDBConfig;
+
+    InfluxDB influxDB;
+
+//    private static final String CLICKHOUSE_URL = "jdbc:clickhouse://192.168.1.178:8123/test_0314";
+//    private static final String CLICKHOUSE_USER = "default";
+//    private static final String CLICKHOUSE_PASSWORD = "Abc_123";
+
+    @Value("${clickhouse.url}")
+    public String CLICKHOUSE_URL;
+
+    @Value("${clickhouse.user}")
+    public String CLICKHOUSE_USER;
+
+    @Value("${clickhouse.password}")
+    public String CLICKHOUSE_PASSWORD;
+
+
+    public void init() {
+        OkHttpClient.Builder client = new OkHttpClient.Builder()
+                .readTimeout(2000, TimeUnit.SECONDS).pingInterval(30, TimeUnit.SECONDS);
+        influxDB = InfluxDBFactory.connect(influxDBConfig.url, influxDBConfig.user, influxDBConfig.password, client);
+        influxDB.setDatabase(influxDBConfig.dataBaseName);
+
+        log.info("init");
+
+        // influxToInflux();
+        allSubSysttemDataToClickHouse();
+    }
+
+    // 往后加X分钟
+    public String afterXMinutes(String dateStr) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        try {
+            Date utilDate = sdf.parse(dateStr);
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(utilDate);
+            calendar.add(Calendar.MINUTE, influxDBConfig.minutes);
+
+            Date afterTime = calendar.getTime();
+            return sdf.format(afterTime);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    private List<String> getAllSubSystemMeasurement() {
+        List<String> measurements = new ArrayList<>();
+        String querySql = "show measurements with measurement  =  /.*RealTimeData_.*/";
+
+        List<QueryResult.Result> results1 = influxDB.query(new Query(querySql)).getResults();
+        if (results1 != null && results1.get(0).getSeries() != null) {
+            List<QueryResult.Series> seriesL = results1.get(0).getSeries();
+            if (seriesL.size() > 0) {
+                for (List<Object> row : seriesL.get(0).getValues()) {
+                    String name = (String) row.get(0);
+                    measurements.add(name);
+                }
+            }
+        }
+        return measurements;
+
+    }
+
+    // 所有RealTimeData_子系统的数据导入到clickhouse
+    public void allSubSysttemDataToClickHouse() {
+        List<String> measurements = getAllSubSystemMeasurement();
+        Connection connection = null;
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+            // 中断的时候处理
+            String curName = null;
+            Boolean hasFound = true;
+            for (int i = 0; i <= measurements.size(); i++) {
+                String tableName = measurements.get(i);
+
+                if (curName == null) {
+                    hasFound = true;
+                } else {
+                    if (!hasFound) {
+                        if (curName.equals(tableName)) {
+                            hasFound = true;
+                        }
+                    }
+                }
+                if (!hasFound) {
+                    continue;
+                }
+
+                String hasDataSql = String.format("select time, TagName as tagName,Value as value from %s order by time limit 1", tableName);
+                // log.info("hasDataSql:" + hasDataSql);
+                List<QueryResult.Result> results1 = influxDB.query(new Query(hasDataSql)).getResults();
+                Boolean hasData_table = false;
+                String sqlDateBegin = null;
+                if (results1 != null && results1.get(0).getSeries() != null) {
+                    List<QueryResult.Series> seriesL = results1.get(0).getSeries();
+                    if (seriesL.size() > 0) {
+                        hasData_table = true;
+                        for (List<Object> row : seriesL.get(0).getValues()) {
+                            sqlDateBegin = (String) row.get(0);
+                        }
+                    }
+                }
+                if (!hasData_table) {
+                    continue;
+                }
+                log.info(tableName + ": " + sqlDateBegin);
+
+                Boolean hasMoreDate = true;
+                String dateStr = null;
+                Boolean isBegin = true;
+                do {
+
+                    String sqlDate = (null == dateStr) ? sqlDateBegin : dateStr;
+                    // 计算往后X分钟
+                    String afterStr = afterXMinutes(sqlDate);
+                    String sql = String.format("select time,TagName as tagName,Value as value,Valid as isValid from %s where time >= '%s' and time < '%S'", tableName, sqlDate, afterStr);
+                    List<QueryResult.Result> results = null;
+                    // log.info("sql:" + sql);
+                    results = influxDB.query(new Query(sql)).getResults();
+
+                    if (results != null && results.get(0).getSeries() != null) {
+                        PreparedStatement statement = null;
+                        List<QueryResult.Series> seriesL = results.get(0).getSeries();
+                        // dateStr = String.valueOf(seriesL.get(0).getValues().get(seriesL.get(0).getValues().size() - 1).get(0));
+                        dateStr = afterStr;
+                        log.info("dateStr:" + dateStr);
+                        if (seriesL.size() == 0) {
+                            if (!isBegin) {
+                                hasMoreDate = false;
+                            }
+                        }
+                        if (seriesL.size() > 0) {
+                            isBegin = false;
+                            connection = DriverManager.getConnection(CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD);
+                            // connection.setAutoCommit(false);
+                            String ckSQL = "insert into RealTimeData(time, tagName, value, isValid) values (?, ?, ?, ?)";
+                            statement = connection.prepareStatement(ckSQL);
+
+                            QueryResult.Series series = seriesL.get(0);
+                            //List<Object> row = series.getValues());
+                            if (seriesL.get(0).getValues().size() == 0) {
+                                if (!isBegin) {
+                                    hasMoreDate = false;
+                                }
+                            }
+                            for (List<Object> row : seriesL.get(0).getValues()) {
+                                java.util.Date utilDate = sdf.parse((String) row.get(0));
+                                // java.sql.Date sqlTypeDate = new java.sql.Date(utilDate.getTime());
+                                statement.setLong(1, utilDate.getTime() / 1000);
+                                statement.setString(2, (String) row.get(1));
+                                statement.setDouble(3, (Double) row.get(2));
+                                statement.setBoolean(4, (Boolean) row.get(3));
+                                statement.addBatch();
+                            }
+                            int[] updateCounts = statement.executeBatch();
+                            // connection.commit();
+                            // log.info("Batch insert complete, rows" + updateCounts.length);
+                        }
+//                    count ++;
+//                    if (count > 10) {
+//                        hasMoreDate = false;
+//                    }
+                    } else {
+                        if (!isBegin) {
+                            hasMoreDate = false;
+                        }
+                    }
+                } while (hasMoreDate);
+            }
+        }catch (Exception e) {
+            e.printStackTrace();
+
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            influxDB.close();
+        }
+    }
+
+}

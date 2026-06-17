@@ -1,0 +1,65 @@
+
+server:
+  port: 28080
+
+influxdb:
+  url:  http://192.168.0.54:8086
+  user: root
+  password: P@ssw0rd
+  dataBaseName: gaoantun
+  minutes: 1
+  starttime: 2025-01-14 22:30:00
+  endtime: 2025-01-14 23:00:00
+
+# 日志配置
+logging:
+  level:
+    com: debug
+    org.springframework: warn
+
+# Spring配置
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driverClassName: org.postgresql.Driver
+    url: jdbc:postgresql://192.168.0.58:5432/jr_znjp?useUnicode=true&characterEncoding=utf8&prepareThreshold=0
+    username: postgres
+    password: P@ssw0rd
+    initial-size: 1
+    min-idle: 5
+    max-active: 5
+    max-wait: 30
+mybatis:
+  # 搜索指定包别名
+  typeAliasesPackage: com.changgeng.model
+  # 配置mapper的扫描，找到所有的mapper.xml映射文件
+  mapperLocations: classpath:mapper/**/*Mapper.xml
+  # config-location: classpath:mybatis/mybatis-config.xml
+
+csv:
+  fileName: /Users/wangyouzhuo/Desktop/a/jingran/260601/export.csv
+
+prompt:
+  file: /Users/wangyouzhuo/wyz/java/clickhouse_sync/influxdbtool_ai/prompt_1.txt
+  model: Jarcgon/Qwen3.6-35B-A3B-Claude-4.7-Opus-abliterated-uncenfull
+
+ollama:
+  url: http://192.168.0.54:11434
+
+dam-sdk:
+  url: http://192.168.0.106:22796
+
+dam-core:
+  url: http://192.168.0.106:22800
+
+dam-ext:
+  url: http://192.168.0.158:8018
+
+fastgpt:
+  url: http://192.168.0.58:3000
+  token: fastgpt-p41BbJMwFlvPDDnQVHeJOCV7fDMrwMCxV6tIJys6ZovLS9Kb3RZkT1uQT
+  datasetId: 6a30a7aa32d33e37e8a0a272
+  embeddingWeight: 0.5
+  limit: 3000
+  similarity: 0
+  datasetSearchExtensionModel: Jarcgon/Qwen3.6-35B-A3B-Claude-4.7-Opus-abliterated-uncenfull

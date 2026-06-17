@@ -1,0 +1,230 @@
+package com.changgeng.handler;
+
+import com.changgeng.config.SmsConfig;
+import lombok.extern.java.Log;
+import okhttp3.OkHttpClient;
+import org.influxdb.InfluxDB;
+import org.influxdb.InfluxDBException;
+import org.influxdb.InfluxDBFactory;
+import org.influxdb.dto.Query;
+import org.influxdb.dto.QueryResult;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.sql.Connection;
+
+/**
+ * @Author henry
+ * @Date 2024/1/17 9:26
+ * @Version 1.0
+ */
+
+@Service
+@Log
+public class InfluxDBService {
+    @Autowired
+    SmsConfig smsConfig;
+
+    InfluxDB influxDB;
+
+    private static final String CLICKHOUSE_URL = "jdbc:clickhouse://192.168.1.178:8123/test_0314";
+    private static final String CLICKHOUSE_USER = "default";
+    private static final String CLICKHOUSE_PASSWORD = "Abc_123";
+
+    public void init() {
+//        OkHttpClient.Builder client = new OkHttpClient.Builder()
+//                .readTimeout(2000, TimeUnit.SECONDS).pingInterval(30, TimeUnit.SECONDS);
+//        influxDB = InfluxDBFactory.connect(smsConfig.url, smsConfig.user, smsConfig.password, client);
+//        influxDB.setDatabase(smsConfig.dataBaseName);
+//
+//        log.info("init");
+//        querySQLToClickHouse();
+//        influxDB.close();
+        testClickHouse();
+    }
+
+    public void testClickHouse() {
+        Connection connection = null;
+        PreparedStatement statement = null;
+        try {
+            connection = DriverManager.getConnection(CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD);
+            connection.setAutoCommit(false);
+            String ckSQL = "insert into RealTimeData(time, tagName, value, isValid) values (?, ?, ?, ?)";
+            statement = connection.prepareStatement(ckSQL);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            List<String> timeList = new ArrayList<String>();
+            timeList.add("2022-12-31T13:20:00Z");
+            timeList.add("2022-12-31T14:20:00Z");
+            timeList.add("2022-12-31T15:20:00Z");
+
+            List<String> nameList = new ArrayList<String>();
+            nameList.add("test1");
+            nameList.add("test2");
+            nameList.add("test3");
+
+            for (int j = 0; j < 3; j++) {
+                java.util.Date utilDate = sdf.parse(timeList.get(j));
+                // java.sql.Date sqlTypeDate = new java.sql.Date(utilDate.getTime());
+                //statement.setLong(1, utilDate.toInstant().truncatedTo(ChronoUnit.MILLIS).toEpochMilli());
+                statement.setLong(1, utilDate.getTime()/1000);
+                statement.setString(2, (String) nameList.get(j));
+                double dNum = 1.3337;
+                statement.setDouble(3, dNum);
+                statement.setBoolean(4, true);
+                statement.addBatch();
+                //statement.execute();
+            }
+             int[] updateCounts = statement.executeBatch();
+             connection.commit();
+             log.info("Batch insert complete, rows" + updateCounts.length);
+            //log.info("Batch insert complete, rows");
+        } catch (SQLException | ParseException e) {
+            e.printStackTrace();
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    // 查询的数据导出到ck
+    public void querySQLToClickHouse() {
+        String sqlDate = smsConfig.beginDate;
+        String sql = String.format("select time,TagName as tagName,Value as value,Valid as isValid from %s where time > '%s' limit %d", smsConfig.tableName, sqlDate, smsConfig.count);
+        List<QueryResult.Result> results = null;
+        try {
+            results = influxDB.query(new Query(sql)).getResults();
+        }catch (InfluxDBException e) {
+            e.printStackTrace();
+            return;
+        }
+        if (results != null && results.get(0).getSeries() != null) {
+            Connection connection = null;
+            PreparedStatement statement = null;
+
+            List<QueryResult.Series> seriesL = results.get(0).getSeries();
+//            for (int j1 = 0; j1 < seriesL.size(); j1++) {
+//                QueryResult.Series series1 = seriesL.get(j1);
+//                for (List<Object> row : series1.getValues()) {
+//
+//                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+//                    sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+//                    try {
+//                        Date date = sdf.parse((String)row.get(0));
+//                        log.info(date.toString());
+//                    } catch (ParseException e) {
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+            try {
+                connection = DriverManager.getConnection(CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD);
+                connection.setAutoCommit(false);
+                String ckSQL = "insert into RealTimeData(time, tagName, value, isValid) values (?, ?, ?, ?)";
+                statement = connection.prepareStatement(ckSQL);
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                for (int j = 0; j < seriesL.size(); j++) {
+                    QueryResult.Series series = seriesL.get(j);
+                    List<Object> row = Collections.singletonList(series.getValues());
+                    java.util.Date utilDate = sdf.parse((String) row.get(0));
+                    java.sql.Date sqlTypeDate = new java.sql.Date(utilDate.getTime());
+                    statement.setDate(1, sqlTypeDate);
+                    statement.setString(2, (String) row.get(1));
+                    statement.setDouble(3, (Double) row.get(2));
+                    statement.setBoolean(4, (Boolean) row.get(3));
+                    statement.addBatch();
+                }
+                int[] updateCounts = statement.executeBatch();
+                connection.commit();
+                log.info("Batch insert complete, rows" + updateCounts.length);
+            } catch (SQLException | ParseException e) {
+                e.printStackTrace();
+            } finally {
+                if (connection != null) {
+                    try {
+                        connection.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+        }
+    }
+
+
+    // 导出到cvs文件
+    public void querySQL() {
+        Boolean hasMoreDate = true;
+        String dateStr = null;
+        do {
+            String sqlDate = null == dateStr ? smsConfig.beginDate : dateStr;
+            String sql = String.format("select * from %s where time > '%s' limit %d", smsConfig.tableName, sqlDate, smsConfig.count);
+            log.info("sql:"+sql);
+            List<QueryResult.Result> results = null;
+            try {
+                results = influxDB.query(new Query(sql)).getResults();
+            }catch (InfluxDBException e) {
+                e.printStackTrace();
+                return;
+            }
+            if (results != null && results.get(0).getSeries() != null) {
+                StringBuilder csv = new StringBuilder();
+                List<QueryResult.Series> seriesL = results.get(0).getSeries();
+                dateStr = String.valueOf(seriesL.get(0).getValues().get(seriesL.get(0).getValues().size() - 1).get(0));
+                log.info("dateStr:" + dateStr);
+                if (seriesL.size() == 0) {
+                    hasMoreDate = false;
+                }
+                for (int j = 0; j < seriesL.size(); j++) {
+                    QueryResult.Series series = seriesL.get(j);
+                    for (String column : series.getColumns()) {
+                        csv.append(column + ",");
+                    }
+                    csv.deleteCharAt(csv.length() - 1);
+                    csv.append(System.lineSeparator());
+                    for (List<Object> row : series.getValues()) {
+                        String fieldValues = row.toString().substring(1, row.toString().length() -1);
+                        csv.append(fieldValues + System.lineSeparator());
+                    }
+                    try {
+                        String curDictionary = System.getProperty("user.dir");
+                        String pathName = curDictionary+ File.separator+"exports";
+                        File exportsFolder = new File(pathName);
+                        exportsFolder.mkdir();
+                        FileWriter fw = new FileWriter(new File(pathName + File.separator + series.getName()
+                            + "-" + dateStr.replace(":","") + ".csv"));
+                        fw.write(csv.toString());
+                        fw.close();
+                        log.info("CSV file for series" + series.getName() + " successfully created");
+                    }catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                hasMoreDate = false;
+            } else {
+                hasMoreDate = false;
+            }
+        } while (hasMoreDate);
+    }
+
+}

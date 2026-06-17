@@ -1,0 +1,31 @@
+server.port=48011
+influxdb.url=http://192.168.0.139:8086
+influxdb.user=root
+influxdb.password=P@ssw0rd
+influxdb.dataBaseName=IntelligentSupervision
+influxdb.minutes=1
+#clickhouse.url=jdbc:clickhouse://localhost:8123/test
+#clickhouse.user=cgadmin
+#clickhouse.password=Abc_123
+
+# back 8 hours
+influxdb.endtime=2025-01-14 23:00:00
+influxdb.starttime=2025-01-14 22:30:00
+
+# 2025?3?11?16?24?
+#influxdb.endtime=2025-03-11 08:24:00
+#influxdb.starttime=2025-03-11 07:54:00
+
+# 2025?3?11?16?24?
+#influxdb.endtime=2025-03-11 08:24:00
+#influxdb.starttime=2025-03-11 07:54:00
+
+# 2025?07?10?15?58?08?
+#influxdb.endtime=2025-07-10 07:58:00
+#influxdb.starttime=2025-07-10 07:28:00
+
+# csv.fileName = /Users/wangyouzhuo/Desktop/a/jingran/taginfo.csv
+
+csv.fileName = /Users/wangyouzhuo/Desktop/a/jingran/point_info.csv
+
+# csv.fileName = /Users/wangyouzhuo/Desktop/a/jingran/kaiguan_points_subsystem.csv

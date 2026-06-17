@@ -1,0 +1,301 @@
+package com.changgeng.handler;
+
+import com.changgeng.config.InfluxDBConfig;
+import lombok.extern.java.Log;
+import okhttp3.OkHttpClient;
+import org.influxdb.InfluxDB;
+import org.influxdb.InfluxDBException;
+import org.influxdb.InfluxDBFactory;
+import org.influxdb.dto.BatchPoints;
+import org.influxdb.dto.Point;
+import org.influxdb.dto.Query;
+import org.influxdb.dto.QueryResult;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.util.*;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @Author henry
+ * @Date 2024/1/17 9:26
+ * @Version 1.0
+ */
+
+@Service
+@Log
+public class InfluxDBServiceHEGS {
+    @Autowired
+    InfluxDBConfig influxDBConfig;
+
+    InfluxDB influxDB;
+
+//    private static final String CLICKHOUSE_URL = "jdbc:clickhouse://192.168.1.178:8123/test_0314";
+//    private static final String CLICKHOUSE_USER = "default";
+//    private static final String CLICKHOUSE_PASSWORD = "Abc_123";
+
+    @Value("${clickhouse.url}")
+    public String CLICKHOUSE_URL;
+
+    @Value("${clickhouse.user}")
+    public String CLICKHOUSE_USER;
+
+    @Value("${clickhouse.password}")
+    public String CLICKHOUSE_PASSWORD;
+
+
+    public void init() {
+        OkHttpClient.Builder client = new OkHttpClient.Builder()
+                .readTimeout(2000, TimeUnit.SECONDS).pingInterval(30, TimeUnit.SECONDS);
+        influxDB = InfluxDBFactory.connect(influxDBConfig.url, influxDBConfig.user, influxDBConfig.password, client);
+        influxDB.setDatabase(influxDBConfig.dataBaseName);
+
+        log.info("init");
+
+        // influxToInflux();
+        allSubSysttemDataToClickHouse();
+    }
+
+    // 往后加X分钟
+    public String afterXMinutes(String dateStr) {
+        SimpleDateFormat sdf1 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'");
+        sdf1.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf2.setTimeZone(TimeZone.getTimeZone("UTC"));
+        try {
+            SimpleDateFormat sdf = dateStr.length() > 20 ? sdf1 : sdf2;
+            Date utilDate = sdf.parse(dateStr);
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(utilDate);
+            calendar.add(Calendar.MINUTE, influxDBConfig.minutes);
+
+            Date afterTime = calendar.getTime();
+            return sdf.format(afterTime);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    private List<String> getAllSubSystemMeasurement() {
+        List<String> measurements = new ArrayList<>();
+        String querySql = "show measurements with measurement  =  /.*RealTimeData_.*/";
+
+        List<QueryResult.Result> results1 = influxDB.query(new Query(querySql)).getResults();
+        if (results1 != null && results1.get(0).getSeries() != null) {
+            List<QueryResult.Series> seriesL = results1.get(0).getSeries();
+            if (seriesL.size() > 0) {
+                // 按数字排序
+                for (List<Object> row : seriesL.get(0).getValues()) {
+                    String name = (String) row.get(0);
+                    measurements.add(name);
+                }
+            }
+        }
+
+        Collections.sort(measurements, new Comparator<String>() {
+            @Override
+            public int compare(String s1, String s2) {
+                // 提取字符串中的数字部分
+                int num1 = extractNumber(s1);
+                int num2 = extractNumber(s2);
+
+                // 按数字大小比较
+                return Integer.compare(num1, num2);
+            }
+
+            // 从字符串中提取数字的辅助方法
+            private int extractNumber(String str) {
+                // 分割字符串，获取下划线后的数字部分
+                String numStr = str.split("_")[1];
+                // 转换为整数并返回
+                return Integer.parseInt(numStr);
+            }
+        });
+
+        return measurements;
+
+    }
+
+    // 判断时间是否为已经结束
+    public Boolean hasMore(String dateStr) {
+        SimpleDateFormat sdf1 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'");
+        sdf1.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sdf2.setTimeZone(TimeZone.getTimeZone("UTC"));
+        try {
+            SimpleDateFormat sdf = dateStr.length() > 20 ? sdf1 : sdf2;
+            Date sqlDate = sdf.parse(dateStr);
+            long targetTimeMillis = sqlDate.getTime();
+            long currentTimeMillis = System.currentTimeMillis();
+            // 判断sql的时间与当前时间
+            if (targetTimeMillis > currentTimeMillis) {
+                return false;
+            }else {
+                // 24小时内，也认为结束
+                return (currentTimeMillis - targetTimeMillis) > 32400000L;
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return true;
+        }
+    }
+
+    // 所有RealTimeData_子系统的数据导入到clickhouse
+    public void allSubSysttemDataToClickHouse() {
+        List<String> measurements = getAllSubSystemMeasurement();
+        Connection connection = null;
+        try {
+            SimpleDateFormat sdf1 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'");
+            sdf1.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+            SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            sdf2.setTimeZone(TimeZone.getTimeZone("UTC"));
+            // 中断的时候处理
+            String curName = null;
+            Boolean hasFound = true;
+            connection = DriverManager.getConnection(CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD);
+            for (int i = 0; i <= measurements.size(); i++) {
+                if (i >= measurements.size()) {
+                    break;
+                }
+                String tableName = measurements.get(i);
+
+                if (curName == null) {
+                    hasFound = true;
+                } else {
+                    if (!hasFound) {
+                        if (curName.equals(tableName)) {
+                            hasFound = true;
+                        }
+                    }
+                }
+                if (!hasFound) {
+                    continue;
+                }
+
+                // 查找某个measument的最小时间
+                String hasDataSql = String.format("select time, TagName as tagName,Value as value from %s order by time limit 1", tableName);
+                // log.info("hasDataSql:" + hasDataSql);
+                List<QueryResult.Result> results1 = influxDB.query(new Query(hasDataSql)).getResults();
+                // 该measument是否有数据
+                Boolean hasData_table = false;
+                // 该measument的beginTime
+                String sqlDateBegin = null;
+                if (results1 != null && results1.get(0).getSeries() != null) {
+                    List<QueryResult.Series> seriesL = results1.get(0).getSeries();
+                    if (seriesL.size() > 0) {
+                        hasData_table = true;
+                        for (List<Object> row : seriesL.get(0).getValues()) {
+                            sqlDateBegin = (String) row.get(0);
+                        }
+                    }
+                }
+                // 该measument没有数据
+                if (!hasData_table) {
+                    continue;
+                }
+                log.info(tableName + " beginTime: " + sqlDateBegin);
+
+                Boolean hasMoreDate = true;
+                String dateStr = null;
+                Boolean isBegin = true;
+                do {
+
+                    String sqlDate = (null == dateStr) ? sqlDateBegin : dateStr;
+                    // 计算往后X分钟
+                    dateStr = afterXMinutes(sqlDate);
+                    String sql = String.format("select time,TagName as tagName,Value as value,Valid as isValid from %s where time >= '%s' and time < '%S'", tableName, sqlDate, dateStr);
+                    List<QueryResult.Result> results = null;
+                    // log.info("sql:" + sql);
+                    results = influxDB.query(new Query(sql)).getResults();
+
+                    if (results != null && results.get(0).getSeries() != null) {
+                        PreparedStatement statement = null;
+                        List<QueryResult.Series> seriesL = results.get(0).getSeries();
+                        // dateStr = String.valueOf(seriesL.get(0).getValues().get(seriesL.get(0).getValues().size() - 1).get(0));
+
+                        log.info("dateStr hasRecord :" + dateStr);
+                        // 没有数据了
+                        if (seriesL.size() == 0) {
+                            if (!isBegin) {
+                                hasMoreDate = hasMore(dateStr);
+                            }
+                        }
+                        if (seriesL.size() > 0) {
+                            isBegin = false;
+                            // connection.setAutoCommit(false);
+                            String ckSQL = "insert into RealTimeData(time, tagName, value, isValid) values (?, ?, ?, ?)";
+                            statement = connection.prepareStatement(ckSQL);
+
+                            QueryResult.Series series = seriesL.get(0);
+                            //List<Object> row = series.getValues());
+                            if (seriesL.get(0).getValues().size() == 0) {
+                                if (!isBegin) {
+                                    hasMoreDate = hasMore(dateStr);;
+                                }
+                            }
+                            Set<String> minuteAndTagsSet = new HashSet<>();
+                            for (List<Object> row : seriesL.get(0).getValues()) {
+                                String dateStrRow = (String) row.get(0);
+                                SimpleDateFormat sdf = dateStrRow.length() > 20 ? sdf1 : sdf2;
+                                java.util.Date utilDate = sdf.parse(dateStrRow);
+                                // java.sql.Date sqlTypeDate = new java.sql.Date(utilDate.getTime());
+
+                                // 整分钟
+                                long minutesTime = utilDate.getTime() / 60000 * 60;
+                                String tagName = (String) row.get(1);
+                                String minuteAndTagStr = String.format("%s&%d", tagName, minutesTime);
+                                // 判断数据库中
+                                if (minuteAndTagsSet.contains(minuteAndTagStr)) {
+                                    continue;
+                                }else {
+                                    minuteAndTagsSet.add(minuteAndTagStr);
+                                }
+                                statement.setLong(1, minutesTime);
+                                statement.setString(2, tagName);
+                                statement.setDouble(3, (Double) row.get(2));
+                                statement.setBoolean(4, (Boolean) row.get(3));
+                                statement.addBatch();
+                            }
+                            // 写入clickhouse
+                            int[] updateCounts = statement.executeBatch();
+                            // connection.commit();
+                            // log.info("Batch insert complete, rows" + updateCounts.length);
+                        }
+
+                    } else {
+                        if (!isBegin) {
+                            log.info("dateStr norecord :" + dateStr);
+                            hasMoreDate = hasMore(dateStr);
+                        }
+                    }
+                } while (hasMoreDate);
+            }
+        }catch (Exception e) {
+            e.printStackTrace();
+
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            influxDB.close();
+        }
+    }
+
+}

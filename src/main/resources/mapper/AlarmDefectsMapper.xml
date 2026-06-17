@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.changgeng.mapper.AlarmDefectsMapper">
+  <resultMap id="BaseResultMap" type="com.changgeng.pojo.AlarmDefects">
+    <id column="defect_name" jdbcType="VARCHAR" property="defectName" />
+    <id column="alarm_incident_id" jdbcType="INTEGER" property="alarmIncidentId" />
+    <result column="the_last_time" jdbcType="TIMESTAMP" property="theLastTime" />
+    <result column="defect_id" jdbcType="BIGINT" property="defectId" />
+    <result column="severity" jdbcType="DOUBLE" property="severity" />
+    <result column="type" jdbcType="INTEGER" property="type" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    defect_name, alarm_incident_id, the_last_time, defect_id, severity
+  </sql>
+  <select id="getByAlarmIncidentId" resultMap="BaseResultMap">
+    select * from alarm_defects where alarm_incident_id = #{alarmIncidentId,jdbcType=INTEGER} order by severity desc
+  </select>
+</mapper>

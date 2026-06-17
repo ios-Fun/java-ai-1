@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.changgeng.mapper.DefectIncidentInfoMapper">
+    <resultMap id="BaseResultMap" type="com.changgeng.model.DefectIncidentInfo">
+        <id column="data_id" jdbcType="INTEGER" property="dataId" />
+        <result column="name" jdbcType="VARCHAR" property="name" />
+        <result column="severity" jdbcType="DOUBLE" property="severity" />
+        <result column="max_severity" jdbcType="DOUBLE" property="maxSeverity" />
+        <result column="real_severity" jdbcType="DOUBLE" property="realSeverity" />
+        <result column="last_time" jdbcType="TIMESTAMP" property="lastTime" />
+        <result column="type" jdbcType="VARCHAR" property="type" />
+        <result column="node_id" jdbcType="BIGINT" property="nodeId" />
+        <result column="level" jdbcType="VARCHAR" property="level" />
+        <result column="incident_id" jdbcType="INTEGER" property="incidentId" />
+        <result column="max_time" jdbcType="TIMESTAMP" property="maxTime" />
+        <result column="unit" jdbcType="VARCHAR" property="unit" />
+        <result column="value" jdbcType="DOUBLE" property="value" />
+        <result column="subsystem_id" jdbcType="BIGINT" property="subsystemId" />
+        <result column="tag_code" jdbcType="VARCHAR" property="tagCode" />
+        <result column="status" jdbcType="VARCHAR" property="status" />
+        <result column="is_red" jdbcType="VARCHAR" property="isRed" />
+        <result column="alarm_type" jdbcType="VARCHAR" property="alarmType" />
+    </resultMap>
+
+    <select id="selectDefectIncidentIdListByName" resultMap="BaseResultMap">
+        select * from defect_incident_info where name = #{deviceName} and type not in ('特征', '测点', '故障模式')
+            and last_time >= #{startDate} and last_time &lt;= #{endDate}
+    </select>
+
+    <select id="selectDefectIncidentById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        select * from defect_incident_info where incident_id = #{defectId} and type = '故障模式'
+    </select>
+
+    <select id="selectDefectIncidentListById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        select * from defect_incident_info where incident_id = #{defectId}
+    </select>
+
+</mapper>

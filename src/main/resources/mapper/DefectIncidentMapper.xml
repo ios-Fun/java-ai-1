@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.changgeng.mapper.DefectIncidentMapper">
+    <resultMap id="BaseResultMap" type="com.changgeng.model.DefectIncident">
+        <id column="defectincidentid" jdbcType="INTEGER" property="defectincidentid"/>
+        <result column="thedefectinstanceid" jdbcType="INTEGER" property="thedefectinstanceid"/>
+        <result column="theparentinstanceid" jdbcType="INTEGER" property="theparentinstanceid"/>
+        <result column="theunitinstanceid" jdbcType="INTEGER" property="theunitinstanceid"/>
+        <result column="thepowerstationid" jdbcType="INTEGER" property="thepowerstationid"/>
+        <result column="thecomponentoverhaulitemid" jdbcType="INTEGER" property="thecomponentoverhaulitemid"/>
+        <result column="serialnumber" jdbcType="INTEGER" property="serialnumber"/>
+        <result column="havesendoverhaul" jdbcType="BIT" property="havesendoverhaul"/>
+        <result column="closed" jdbcType="BIT" property="closed"/>
+        <result column="type" jdbcType="BIT" property="type"/>
+        <result column="thediagnosistypeid" jdbcType="INTEGER" property="thediagnosistypeid"/>
+        <result column="previousflownodeid" jdbcType="INTEGER" property="previousflownodeid"/>
+        <result column="currentflownodeid" jdbcType="INTEGER" property="currentflownodeid"/>
+        <result column="currentstatusname" jdbcType="VARCHAR" property="currentstatusname"/>
+        <result column="currentstatuscomment" jdbcType="VARCHAR" property="currentstatuscomment"/>
+        <result column="firstoccureddatetime" jdbcType="TIMESTAMP" property="firstoccureddatetime"/>
+        <result column="createddatetime" jdbcType="TIMESTAMP" property="createddatetime"/>
+        <result column="lastoccureddatetime" jdbcType="TIMESTAMP" property="lastoccureddatetime"/>
+        <result column="lastprocessdatetime" jdbcType="TIMESTAMP" property="lastprocessdatetime"/>
+        <result column="expireddatetime" jdbcType="TIMESTAMP" property="expireddatetime"/>
+        <result column="defectname" jdbcType="VARCHAR" property="defectName"/>
+        <result column="severity_level" jdbcType="VARCHAR" property="severityLevel"/>
+    </resultMap>
+
+    <select id="selectDefectIncidentById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        select * from defectincident where defectincidentid = #{defectId} limit 1
+    </select>
+
+</mapper>
