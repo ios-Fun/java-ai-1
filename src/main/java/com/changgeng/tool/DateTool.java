@@ -1,6 +1,7 @@
 package com.changgeng.tool;
 
 import com.changgeng.pojo.DeviceRequest;
+import com.changgeng.pojo.UnitHealthyRequest;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
@@ -44,6 +45,42 @@ public class DateTool {
             }else {
                 startDate = convertStringToDate(deviceRequest.getStartTime());
                 endDate = convertStringToDate(deviceRequest.getEndTime());
+                dates[0] = startDate;
+                dates[1] = endDate;
+            }
+        }
+        return dates;
+    }
+
+    public static Date[] getStartAndEndTime(UnitHealthyRequest request) {
+        Date[] dates = new Date[2];
+        Date endDate = new Date();
+        if (request.getStartTime() == null && request.getTimeUnit() == null) {
+            Date startDate = minusDays(endDate, 7);
+            dates[0] = startDate;
+            dates[1] = endDate;
+        }else {
+            String num = request.getNum();
+            String unit = request.getTimeUnit();
+            Date startDate = null;
+            if (num != null && unit != null) {
+                if (unit.equals("week")) {
+                    startDate = minusWeeks(endDate, Integer.parseInt(num));
+                }else if (unit.equals("day")) {
+                    startDate = minusDays(endDate, Integer.parseInt(num));
+                }else if (unit.equals("month")) {
+                    startDate = minusMonths(endDate, Integer.parseInt(num));
+                }else if (unit.equals("year")) {
+                    startDate = minusYears(endDate, Integer.parseInt(num));
+                }else {
+                    log.info("unsupported unit: {}", unit);
+                    startDate = minusDays(endDate, 7);
+                }
+                dates[0] = startDate;
+                dates[1] = endDate;
+            }else {
+                startDate = convertStringToDate(request.getStartTime());
+                endDate = convertStringToDate(request.getEndTime());
                 dates[0] = startDate;
                 dates[1] = endDate;
             }

@@ -29,8 +29,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             and last_time >= #{startDate} and last_time &lt;= #{endDate}
     </select>
 
+    <select id="selectDefectIncidentIdListByUnit" resultMap="BaseResultMap">
+        SELECT dii.*
+        FROM defect_incident_info dii
+        JOIN defectincident di ON di.defectincidentid = dii.incident_id
+        WHERE dii.type NOT IN ('特征', '测点', '故障模式')
+        AND di.theunitinstanceid = #{unitId}
+        AND dii.last_time >= #{startDate}
+        AND dii.last_time &lt;= #{endDate}
+    </select>
+
     <select id="selectDefectIncidentById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
         select * from defect_incident_info where incident_id = #{defectId} and type = '故障模式'
+    </select>
+
+    <select id="selectFaultModeListById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        select * from defect_incident_info where incident_id = #{incidentId} and type = '故障模式'
     </select>
 
     <select id="selectDefectIncidentListById" parameterType="java.lang.Integer" resultMap="BaseResultMap">

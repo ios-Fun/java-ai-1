@@ -14,4 +14,7 @@ public interface DamCoreClient {
 
     @PostMapping("/fault/graph/unfold")
     Map unfold(@RequestBody IdObj param);
+
+    @PostMapping("/api/v1/dam/instance/selectAllUnit")
+    Map selectAllUnit();
 }
