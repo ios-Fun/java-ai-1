@@ -262,32 +262,15 @@ public class DeviceHealthyController {
      * 故障模式的node_id
      **/
     @RequestMapping("/device/graph")
-    public MultiTreeNode deviceGraph(@RequestParam Integer nodeId) {
-        IdObj debutObj = new IdObj();
-        debutObj.setId(Long.valueOf(nodeId));
-        debutObj.setType("Model");
-        Map map = (Map) damCoreClient.debut(debutObj).get("data");
-        Integer id = (Integer) map.get("id");
-        MultiTreeNode root = new MultiTreeNode();
-        TreeNodeValue tagTreeNodeValue = new TreeNodeValue();
-        tagTreeNodeValue.setValue(map);
-        root.setData(tagTreeNodeValue);
-        root.setChildren(treeNodeService.getTreeNodeChildren(Long.valueOf(id)));
-        // 按层次遍历多叉树
-        treeNodeService.levelOrderBottom(root);
-        return root;
+    public String deviceGraph(@RequestParam Integer nodeId) {
+        return treeNodeService.deviceGraphCode(nodeId);
+        // return root;
     }
 
 
     // 设备健康度
     @RequestMapping("/device/healthy")
     public String deivceHealthy(@RequestBody DeviceRequest deviceRequest) {
-//        Map<String, Object> map = new HashMap<>(3);
-//        map.put("code", "200");
-//        // map.put("message", "操作成功");
-//        map.put("success", true);
-
-        // DefectIncident defectIncident = null;
         String deviceName = deviceRequest.getDevice();
         log.info("deviceName: {}", deviceName);
         Date[] dates =DateTool.getStartAndEndTime(deviceRequest);
@@ -299,35 +282,42 @@ public class DeviceHealthyController {
         if (list.size() == 0) {
             return "设备信息正常";
         }
-        // 获取故障模式
-        DefectIncidentInfo defectModeIncidentInfo = defectIncidentInfoMapper.selectDefectIncidentById(list.get(0).getIncidentId());
-        // 获取: 故障模式、特征、测点
-        List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(list.get(0).getIncidentId());
 
-        // 故障模式的层级和RAG
-        String[] results = deviceHealthyService.deviceGraphShow(Math.toIntExact(defectModeIncidentInfo.getNodeId()));
-        stringBuilder.append(results[0]);
-        stringBuilder.append("\n");
-        stringBuilder.append(deviceHealthyService.deviceRag(results[1]));
-        stringBuilder.append("\n");
+        Set<Long> defectModeIdSets = new HashSet<>();
+        StringBuilder tagsNamesString = new StringBuilder();
+        for (int j = 0; j < list.size(); j++) {
+            // 获取故障模式--有可能故障模式不一样
+            List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(list.get(j).getIncidentId());
+            for (DefectIncidentInfo defectModeIncidentInfo: defectModeIncidentInfoList) {
+                if (defectModeIdSets.contains(defectModeIncidentInfo.getNodeId())) {
+                    continue;
+                }
+                defectModeIdSets.add(defectModeIncidentInfo.getNodeId());
+                // 故障模式的层级和RAG
+                Integer defectModeId = Math.toIntExact(defectModeIncidentInfo.getNodeId());
+                // 层级和测点
+                String[] results = deviceHealthyService.deviceGraphShow(defectModeId);
+                stringBuilder.append(results[0]);
+                tagsNamesString.append(results[1]).append(",");
+                stringBuilder.append("\n\n");
+                // 推导图的伪代码
+                stringBuilder.append(treeNodeService.deviceGraphCode(defectModeId));
+            }
+
+        }
+
         // map.put("message", stringBuilder.toString());
         // 诊断单id
         Integer incidentId = list.get(0).getIncidentId();
 
-//            List<AlarmDefects> alarmDefects = alarmDefectsMapper.getByAlarmIncidentId(incidentId);
-//            Long detectId = alarmDefects.get(0).getDefectId();
-//            Map<String, Object> dam_map = new HashMap<>();
-//            map.put("defectId", Arrays.asList(detectId));
-//            map.put("parentId", detectId);
-//            List<Map> line = (List<Map>) damSdkClient.getAlarmRef(map).get("data");
-
         log.info("incidentId: {}", incidentId);
-        if (defectIncidentInfoList.size() == 0) {
-            return "该诊断单无相关测点信息";
-        }
+
+        stringBuilder.append("\n\n## 测年数据\n\n");
         // 遍历同一个设备下的多个诊断单
         for (int j = 0; j < list.size(); j++) {
             DefectIncidentInfo defectIncident = list.get(j);
+            // 获取: 故障模式、特征、测点
+            List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(list.get(j).getIncidentId());
             // 结束时间
             Date endTime = defectIncident.getLastTime();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
@@ -337,6 +327,8 @@ public class DeviceHealthyController {
             // 往前半小时
             String beginTimeStr = influxDBServiceJR.beforeXMinutes(endTimeStr);
             StringBuilder pointsSB = new StringBuilder();
+            // 从开始时间到结束时间，间隔一分钟
+            pointsSB.append(String.format("\n从 %s 到 %s ", beginTimeStr, endTimeStr));
             String deviceNameStr = null;
             String deviceTypeStr = null;
             for (DefectIncidentInfo defectIncidentInfo : defectIncidentInfoList) {
@@ -372,6 +364,8 @@ public class DeviceHealthyController {
                     deviceTypeStr = defectIncidentInfo.getType();
                 }
             }
+
+            stringBuilder.append(pointsSB.toString());
             if (deviceNameStr == null) {
                 log.warn("没有设备: {}", deviceName);
                 // map.put("message", "没有设备");
@@ -396,6 +390,9 @@ public class DeviceHealthyController {
             }
         }
 
+        stringBuilder.append("\n\n");
+        stringBuilder.append(deviceHealthyService.deviceRag(tagsNamesString.toString()));
+        stringBuilder.append("\n");
         return stringBuilder.toString();
     }
 

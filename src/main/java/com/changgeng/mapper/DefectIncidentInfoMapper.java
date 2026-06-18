@@ -13,7 +13,7 @@ public interface DefectIncidentInfoMapper {
     List<DefectIncidentInfo> selectDefectIncidentIdListByUnit(Integer unitId, Date startDate, Date endDate);
 
     // 根据诊断单获取（故障模式）信息
-    DefectIncidentInfo selectDefectIncidentById(Integer defectId);
+    List<DefectIncidentInfo> selectDefectIncidentById(Integer defectId);
 
     // 根据诊断单获取所有故障模式信息
     List<DefectIncidentInfo> selectFaultModeListById(Integer incidentId);

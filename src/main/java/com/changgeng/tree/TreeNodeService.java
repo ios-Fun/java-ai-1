@@ -18,6 +18,9 @@ public class TreeNodeService {
     @Autowired
     DamExtClient damExtClient;
 
+//    @Autowired
+//    TreeNodeService treeNodeService;
+
     public List getTreeNodeChildren(Long  id) {
 
         List children = new ArrayList<>();
@@ -349,5 +352,30 @@ public class TreeNodeService {
             log.warn("other operation: {}",compare);
             return String.format(" %s ", compare);
         }
+    }
+
+    /**
+     * 获取故障模式下的伪代码
+     * @param nodeId 故障模式id
+     * @param name 故障模式名称
+     * @return
+     */
+    public String deviceGraphCode(Integer nodeId) {
+        IdObj debutObj = new IdObj();
+        debutObj.setId(Long.valueOf(nodeId));
+        debutObj.setType("Model");
+        Map map = (Map) damCoreClient.debut(debutObj).get("data");
+        Integer id = (Integer) map.get("id");
+        MultiTreeNode root = new MultiTreeNode();
+        TreeNodeValue tagTreeNodeValue = new TreeNodeValue();
+        tagTreeNodeValue.setValue(map);
+        root.setData(tagTreeNodeValue);
+        root.setChildren(getTreeNodeChildren(Long.valueOf(id)));
+        // 按层次遍历多叉树
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("## 故障模式'%s'的推导伪代码如下", map.get("name")));
+        sb.append("\n");
+        sb.append(levelOrderBottom(root));
+        return sb.toString();
     }
 }

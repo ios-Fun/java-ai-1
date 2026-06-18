@@ -90,7 +90,7 @@ public class DeviceHealthyService {
         root.setChildren(treeNodeService.getTreeNodeChildren(Long.valueOf(id)));
         // 按层次遍历多叉树
         StringBuilder sb = new StringBuilder();
-        sb.append("该设备关联的：故障模式、特征、测点层级图如下，其中测点是传感器的实际值。");
+        sb.append("## 该设备关联的：故障模式、特征、测点层级图如下，其中测点是传感器的实际值。");
         sb.append("\n");
         StringBuilder sbReturn =  treeNodeService.printMarkdownTree(root, 0);
         if (sbReturn != null) {
