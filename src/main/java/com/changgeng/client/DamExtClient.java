@@ -11,4 +11,7 @@ import java.util.Map;
 public interface DamExtClient {
     @PostMapping("/graph/tags")
     List<Map> getTags(@RequestParam Integer nodeId);
+
+    @PostMapping("/graph/assets")
+    List<Map<String, Object>> getAssets(@RequestParam String assetName);
 }
