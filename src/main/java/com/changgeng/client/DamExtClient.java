@@ -12,6 +12,7 @@ public interface DamExtClient {
     @PostMapping("/graph/tags")
     List<Map> getTags(@RequestParam Integer nodeId);
 
-    @PostMapping("/graph/assets")
-    List<Map<String, Object>> getAssets(@RequestParam String assetName);
+    @PostMapping("/graph/unitsOrAssets")
+    List<Map<String, Object>> getUnitsOrAssetsProps(@RequestParam(required = false) String assetName,
+                                                                     @RequestParam(required = false) String unitName);
 }

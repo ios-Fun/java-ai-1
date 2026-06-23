@@ -207,7 +207,7 @@ public class DeviceHealthyController {
     /**
      * 设备测点关系接口
      * 根据设备名称信息信息，返回机组名称，设备名称，特征名称，测点描述数据
-     *
+     * <p>
      * 请求参数说明：
      * - assetName: 设备名称（必填），如 "汽轮机"
      *
@@ -216,51 +216,24 @@ public class DeviceHealthyController {
      */
     @RequestMapping("/asset/tag")
     public String assetTag(@RequestParam String assetName) {
-        List<Map<String, Object>> assets = damExtClient.getAssets(assetName);
-        // 1. 定义分组键（将三个字段拼接成一个唯一的 Key）
-        // 2. 按照这个 Key 进行分组
-        assets = assets.stream().filter(one -> one.get("tagType").toString().equals("模拟量")).collect(Collectors.toList());
-        Map<String, List<Map<String, Object>>> groupedMap = assets.stream()
-                .collect(Collectors.groupingBy(map ->
-                        String.join("|",
-                                safeGet(map, "unitName"),
-                                safeGet(map, "assetName"),
-                                safeGet(map, "attrName"),
-                                safeGet(map, "srcTagName")
-                        )
-                ));
+        List<Map<String, Object>> assets = damExtClient.getUnitsOrAssetsProps(assetName, null);
+        return getTableByList(assets, assetName);
+    }
 
-        // 3. 遍历分组后的结果，生成表格数据
-        List<Map<String, Object>> tableRows = new ArrayList<>();
-
-        for (List<Map<String, Object>> group : groupedMap.values()) {
-            // 取第一条数据作为该组的表头信息
-            Map<String, Object> firstRow = group.get(0);
-
-            // 构建表格的一行
-            Map<String, Object> tableRow = new LinkedHashMap<>(); // 使用 LinkedHashMap 保证字段顺序
-            tableRow.put("unitName", firstRow.get("unitName"));
-            tableRow.put("assetName", firstRow.get("assetName"));
-            tableRow.put("attrName", firstRow.get("attrName"));
-            tableRow.put("tagDesc", firstRow.get("tagDesc"));
-
-            tableRows.add(tableRow);
-        }
-
-        // 4. 打印或输出结果
-        StringBuilder sb = new StringBuilder();
-        sb.append("与").append(assetName).append("相关的设备测点关系如下:\n");
-        sb.append("| 机组名称 | 设备名称 | 特征名称 | 测点描述 |\n");
-        sb.append("|---|---|---|---|---|\n");
-        for (Map<String, Object> row : tableRows) {
-            // 使用 append 方法拼接，替代 printf
-            sb.append("| ")
-                    .append(row.get("unitName")).append(" | ")
-                    .append(row.get("assetName")).append(" | ")
-                    .append(row.get("attrName")).append(" | ")
-                    .append(row.get("tagDesc")).append(" |\n");
-        }
-        return sb.toString();
+    /**
+     * 机组测点关系接口
+     * 根据机组名称信息信息，返回机组名称，设备名称，特征名称，测点描述数据
+     * <p>
+     * 请求参数说明：
+     * - assetName: 设备名称（必填），如 "汽轮机"
+     *
+     * @param unitName 设备名称
+     * @return 机组名称，设备名称，特征名称，测点描述数据
+     */
+    @RequestMapping("/unit/tag")
+    public String unitTag(@RequestParam String unitName) {
+        List<Map<String, Object>> units = damExtClient.getUnitsOrAssetsProps(null, unitName);
+        return getTableByList(units, unitName);
     }
 
     /**
@@ -513,5 +486,52 @@ public class DeviceHealthyController {
     private static String safeGet(Map<String, Object> map, String key) {
         Object value = map.get(key);
         return value == null ? "" : value.toString();
+    }
+
+    private static String getTableByList(List<Map<String, Object>> list, String instanceName) {
+        // 1. 定义分组键（将三个字段拼接成一个唯一的 Key）
+        // 2. 按照这个 Key 进行分组
+        list = list.stream().filter(one -> one.get("tagType").toString().equals("模拟量")).collect(Collectors.toList());
+        Map<String, List<Map<String, Object>>> groupedMap = list.stream()
+                .collect(Collectors.groupingBy(map ->
+                        String.join("|",
+                                safeGet(map, "unitName"),
+                                safeGet(map, "assetName"),
+                                safeGet(map, "attrName"),
+                                safeGet(map, "srcTagName")
+                        )
+                ));
+
+        // 3. 遍历分组后的结果，生成表格数据
+        List<Map<String, Object>> tableRows = new ArrayList<>();
+
+        for (List<Map<String, Object>> group : groupedMap.values()) {
+            // 取第一条数据作为该组的表头信息
+            Map<String, Object> firstRow = group.get(0);
+
+            // 构建表格的一行
+            Map<String, Object> tableRow = new LinkedHashMap<>(); // 使用 LinkedHashMap 保证字段顺序
+            tableRow.put("unitName", firstRow.get("unitName"));
+            tableRow.put("assetName", firstRow.get("assetName"));
+            tableRow.put("attrName", firstRow.get("attrName"));
+            tableRow.put("tagDesc", firstRow.get("tagDesc"));
+
+            tableRows.add(tableRow);
+        }
+
+        // 4. 打印或输出结果
+        StringBuilder sb = new StringBuilder();
+        sb.append("与").append(instanceName).append("相关的测点关系如下:\n");
+        sb.append("| 机组名称 | 设备名称 | 特征名称 | 测点描述 |\n");
+        sb.append("|---|---|---|---|---|\n");
+        for (Map<String, Object> row : tableRows) {
+            // 使用 append 方法拼接，替代 printf
+            sb.append("| ")
+                    .append(row.get("unitName")).append(" | ")
+                    .append(row.get("assetName")).append(" | ")
+                    .append(row.get("attrName")).append(" | ")
+                    .append(row.get("tagDesc")).append(" |\n");
+        }
+        return sb.toString();
     }
 }
