@@ -204,10 +204,20 @@ public class DeviceHealthyController {
         return stringBuilder.toString();
     }
 
+    /**
+     * 设备测点关系接口
+     * 根据设备名称信息信息，返回机组名称，设备名称，特征名称，测点描述数据
+     *
+     * 请求参数说明：
+     * - assetName: 设备名称（必填），如 "汽轮机"
+     *
+     * @param assetName 设备名称
+     * @return 机组名称，设备名称，特征名称，测点描述数据
+     */
     @RequestMapping("/asset/tag")
     public String assetTag(@RequestParam String assetName) {
         List<Map<String, Object>> assets = damExtClient.getAssets(assetName);
-// 1. 定义分组键（将三个字段拼接成一个唯一的 Key）
+        // 1. 定义分组键（将三个字段拼接成一个唯一的 Key）
         // 2. 按照这个 Key 进行分组
         assets = assets.stream().filter(one -> one.get("tagType").toString().equals("模拟量")).collect(Collectors.toList());
         Map<String, List<Map<String, Object>>> groupedMap = assets.stream()
