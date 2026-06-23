@@ -301,8 +301,30 @@ public class DeviceHealthyController {
      * @return
      */
     @RequestMapping("/device/graph/show")
-    public String deviceGraphShow(@RequestParam Integer nodeId) {
-        return deviceHealthyService.deviceGraphShow(nodeId)[0];
+    public String deviceGraphShow(@RequestParam List<DefectIncidentInfo> list) {
+        StringBuilder stringBuilder = new StringBuilder();
+        Set<Long> defectModeIdSets = new HashSet<>();
+        StringBuilder tagsNamesString = new StringBuilder();
+        for (int j = 0; j < list.size(); j++) {
+            // 获取故障模式--有可能故障模式不一样
+            List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(list.get(j).getIncidentId());
+            for (DefectIncidentInfo defectModeIncidentInfo: defectModeIncidentInfoList) {
+                if (defectModeIdSets.contains(defectModeIncidentInfo.getNodeId())) {
+                    continue;
+                }
+                defectModeIdSets.add(defectModeIncidentInfo.getNodeId());
+                // 故障模式的层级和RAG
+                Integer defectModeId = Math.toIntExact(defectModeIncidentInfo.getNodeId());
+                // 层级和测点
+                String[] results = deviceHealthyService.deviceGraphShow(defectModeId);
+                stringBuilder.append(results[0]);
+                tagsNamesString.append(results[1]).append(",");
+                stringBuilder.append("\n\n");
+                // 推导图的伪代码
+                stringBuilder.append(treeNodeService.deviceGraphCode(defectModeId));
+            }
+        }
+        return stringBuilder.toString();
     }
 
     /**
@@ -315,9 +337,18 @@ public class DeviceHealthyController {
         // return root;
     }
 
+    @RequestMapping("/device/healthy/v2")
+    public List<DefectIncidentInfo> deivceHealthyV2(@RequestBody DeviceRequest deviceRequest) {
+        String deviceName = deviceRequest.getDevice();
+        log.info("deviceName: {}", deviceName);
+        Date[] dates =DateTool.getStartAndEndTime(deviceRequest);
+        // 查询诊断单
+        List<DefectIncidentInfo> list = defectIncidentInfoMapper.selectDefectIncidentIdListByName(deviceName, dates[0], dates[1]);
+        return list;
+    }
 
     // 设备健康度
-    @RequestMapping("/device/healthy")
+    @RequestMapping("/device/healthy/v1")
     public String deivceHealthy(@RequestBody DeviceRequest deviceRequest) {
         String deviceName = deviceRequest.getDevice();
         log.info("deviceName: {}", deviceName);
