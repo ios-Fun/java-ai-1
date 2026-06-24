@@ -279,6 +279,118 @@ public class DeviceHealthyController {
     }
 
     /**
+     * rag查找
+     * @param list 诊断单list
+     * @return
+     */
+    @RequestMapping("/device/rag/v2")
+    public String deviceRagV2(@RequestBody List<Object> list) {
+        // return deviceHealthyService.deviceRag(tagName);
+        StringBuilder tagsNamesString = new StringBuilder();
+        Set<Long> defectModeIdSets = new HashSet<>();
+        for (int j = 0; j < list.size(); j++) {
+            Object item = list.get(j);
+            Integer incidentId = null;
+            if (item instanceof Map) {
+                Map<String, Object> dataMap = (Map<String, Object>) item;
+                incidentId = (Integer) dataMap.get("incidentId");
+            }else if (item instanceof Integer){
+                incidentId = (Integer) item;
+            }else if (item instanceof String){
+                incidentId = Integer.valueOf(String.valueOf(item));
+            }
+            // 获取故障模式--有可能故障模式不一样
+            List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(incidentId);
+            for (DefectIncidentInfo defectModeIncidentInfo: defectModeIncidentInfoList) {
+                if (defectModeIdSets.contains(defectModeIncidentInfo.getNodeId())) {
+                    continue;
+                }
+                defectModeIdSets.add(defectModeIncidentInfo.getNodeId());
+                // 故障模式的层级和RAG
+                Integer defectModeId = Math.toIntExact(defectModeIncidentInfo.getNodeId());
+                // 层级和测点
+                String[] results = deviceHealthyService.deviceGraphShow(defectModeId);
+                tagsNamesString.append(results[1]).append(",");
+            }
+        }
+        return deviceHealthyService.deviceRag(tagsNamesString.toString());
+    }
+
+    /**
+     * 测点趋势信息
+     * @param list 诊断单信息
+     * @return
+     */
+    @RequestMapping("/device/tagsTrend")
+    public String tagsTrend(@RequestBody List<Object> list) {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("\n\n## 测点数据\n\n");
+        // 遍历同一个设备下的多个诊断单
+        for (int j = 0; j < list.size(); j++) {
+            Object item = list.get(j);
+            Integer incidentId = null;
+            if (item instanceof Map) {
+                Map<String, Object> dataMap = (Map<String, Object>) item;
+                incidentId = (Integer) dataMap.get("incidentId");
+            } else if (item instanceof Integer) {
+                incidentId = (Integer) item;
+            } else if (item instanceof String) {
+                incidentId = Integer.valueOf(String.valueOf(item));
+            }
+            // 获取: 故障模式、特征、测点
+            List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(incidentId);
+            // 结束时间
+            Date endTime = defectIncidentInfoList.get(0).getLastTime();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+                    .withZone(ZoneId.of("UTC")); // 关键：必须指定 UTC 时区
+            String endTimeStr = formatter.format(endTime.toInstant());
+
+            // 往前半小时
+            String beginTimeStr = influxDBServiceJR.beforeXMinutes(endTimeStr);
+            StringBuilder pointsSB = new StringBuilder();
+            // 从开始时间到结束时间，间隔一分钟
+            pointsSB.append(String.format("\n从 %s 到 %s ", beginTimeStr, endTimeStr));
+            String deviceNameStr = null;
+            String deviceTypeStr = null;
+            for (DefectIncidentInfo defectIncidentInfo : defectIncidentInfoList) {
+                String type = defectIncidentInfo.getType();
+                if (type.equals("测点")) {
+                    log.info("tag: {}, {}, {}", defectIncidentInfo.getTagCode(), defectIncidentInfo.getSubsystemId(), defectIncidentInfo.getName());
+                    // 查询测点数据
+                    List<Double> pointValues = influxDBServiceJR.queryValues(defectIncidentInfo.getTagCode(), defectIncidentInfo.getSubsystemId(), beginTimeStr, endTimeStr);
+                    pointsSB.append("\n");
+                    pointsSB.append("测点名称：");
+                    pointsSB.append(defectIncidentInfo.getName());
+                    pointsSB.append(", 单位：");
+                    pointsSB.append(defectIncidentInfo.getUnit());
+                    pointsSB.append(", 严重度等级：");
+                    pointsSB.append(defectIncidentInfo.getLevel());
+                    pointsSB.append(", 测点值：[");
+                    if (pointValues.size() == 0) {
+                        log.warn("测点: {} 没有数据", defectIncidentInfo.getName());
+                    } else {
+                        for (int i = 0; i < pointValues.size(); i++) {
+                            pointsSB.append(String.valueOf(pointValues.get(i)));
+
+                            if (i != pointValues.size() - 1) {
+                                pointsSB.append(",");
+                            }
+                        }
+                        pointsSB.append("]");
+                        pointsSB.append("\n");
+                    }
+                } else if (type.equals("设备") || type.equals("子系统") || type.equals("部件")) {
+                    log.info("tag: {}, {}", type, defectIncidentInfo.getName());
+                    deviceNameStr = defectIncidentInfo.getName();
+                    deviceTypeStr = defectIncidentInfo.getType();
+                }
+            }
+            stringBuilder.append(pointsSB.toString());
+        }
+        return stringBuilder.toString();
+    }
+
+    /**
      * 显示层级关系
      * @param list 诊断单list
      * @return
@@ -387,7 +499,7 @@ public class DeviceHealthyController {
 
         log.info("incidentId: {}", incidentId);
 
-        stringBuilder.append("\n\n## 测年数据\n\n");
+        stringBuilder.append("\n\n## 测点数据\n\n");
         // 遍历同一个设备下的多个诊断单
         for (int j = 0; j < list.size(); j++) {
             DefectIncidentInfo defectIncident = list.get(j);

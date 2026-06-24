@@ -7,6 +7,7 @@ import com.changgeng.pojo.IdObj;
 import com.changgeng.tree.MultiTreeNode;
 import com.changgeng.tree.TreeNodeService;
 import com.changgeng.tree.TreeNodeValue;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.*;
 
 @Service
+@Slf4j
 public class DeviceHealthyService {
 
     @Autowired
@@ -29,6 +31,7 @@ public class DeviceHealthyService {
     TreeNodeService treeNodeService;
 
     public String deviceRag(@RequestParam String tagName) {
+        log.info("tagName: {}", tagName);
         Map<String, Object> tag_map = new HashMap<>();
         tag_map.put("datasetId", ragConfig.getDatasetId());
         tag_map.put("text", tagName);
