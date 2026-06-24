@@ -249,17 +249,29 @@ public class DeviceHealthyController {
 
     /**
      * 显示层级关系
-     * @param nodeId 故障模式nodeId
+     * @param list 诊断单list
      * @return
      */
     @RequestMapping("/device/graph/show")
-    public String deviceGraphShow(@RequestParam List<DefectIncidentInfo> list) {
+    public String deviceGraphShow(@RequestBody List<Object> list) {
+    // public String deviceGraphShow(@RequestParam String listStr) {
         StringBuilder stringBuilder = new StringBuilder();
         Set<Long> defectModeIdSets = new HashSet<>();
         StringBuilder tagsNamesString = new StringBuilder();
+        // List<DefectIncidentInfo> list1 = new ArrayList<>();
         for (int j = 0; j < list.size(); j++) {
+            Object item = list.get(j);
+            Integer incidentId = null;
+            if (item instanceof Map) {
+                Map<String, Object> dataMap = (Map<String, Object>) item;
+                incidentId = (Integer) dataMap.get("incidentId");
+            }else if (item instanceof Integer){
+                incidentId = (Integer) item;
+            }else if (item instanceof String){
+                incidentId = Integer.valueOf(String.valueOf(item));
+            }
             // 获取故障模式--有可能故障模式不一样
-            List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(list.get(j).getIncidentId());
+            List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(incidentId);
             for (DefectIncidentInfo defectModeIncidentInfo: defectModeIncidentInfoList) {
                 if (defectModeIdSets.contains(defectModeIncidentInfo.getNodeId())) {
                     continue;
@@ -289,6 +301,7 @@ public class DeviceHealthyController {
         // return root;
     }
 
+    // 获取诊断单信息，对外的mcp方法，主要，得到诊断单
     @RequestMapping("/device/healthy/v2")
     public List<DefectIncidentInfo> deivceHealthyV2(@RequestBody DeviceRequest deviceRequest) {
         String deviceName = deviceRequest.getDevice();
@@ -299,7 +312,7 @@ public class DeviceHealthyController {
         return list;
     }
 
-    // 设备健康度
+    // 设备健康度-v1版本
     @RequestMapping("/device/healthy/v1")
     public String deivceHealthy(@RequestBody DeviceRequest deviceRequest) {
         String deviceName = deviceRequest.getDevice();
