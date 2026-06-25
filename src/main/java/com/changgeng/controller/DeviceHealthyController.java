@@ -280,16 +280,16 @@ public class DeviceHealthyController {
 
     /**
      * rag查找
-     * @param list 诊断单list
+     * @param cached_defectIds 诊断单list
      * @return
      */
     @RequestMapping("/device/rag/v2")
-    public String deviceRagV2(@RequestBody List<Object> list) {
+    public String deviceRagV2(@RequestBody List<Object> cached_defectIds) {
         // return deviceHealthyService.deviceRag(tagName);
         StringBuilder tagsNamesString = new StringBuilder();
         Set<Long> defectModeIdSets = new HashSet<>();
-        for (int j = 0; j < list.size(); j++) {
-            Object item = list.get(j);
+        for (int j = 0; j < cached_defectIds.size(); j++) {
+            Object item = cached_defectIds.get(j);
             Integer incidentId = null;
             if (item instanceof Map) {
                 Map<String, Object> dataMap = (Map<String, Object>) item;
@@ -317,12 +317,110 @@ public class DeviceHealthyController {
     }
 
     /**
-     * 测点趋势信息
-     * @param list 诊断单信息
+     * 测点的趋势图信息，应该是多个测点，对应不同的时间，包含了实际值，估计值
+     * @param cached_TagsTrendPara 上一个mcp方法缓存的
      * @return
      */
     @RequestMapping("/device/tagsTrend")
-    public String tagsTrend(@RequestBody List<Object> list) {
+    public String tagsTrend(@RequestBody List<Object> cached_TagsTrendPara) {
+        log.info("tagsTrend: {}", cached_TagsTrendPara);
+
+        // 从开始时间到结束时间，间隔一分钟
+//        pointsSB.append(String.format("\n从 %s 到 %s ", beginTimeStr, endTimeStr));
+//        String deviceNameStr = null;
+//        String deviceTypeStr = null;
+        StringBuilder pointsSB = new StringBuilder();
+        for (Object item : cached_TagsTrendPara) {
+            Map itemMap = (Map) item;
+            log.info("itemMap: {}", itemMap);
+            if (!(itemMap.containsKey("subsystemId") && itemMap.containsKey("tagCode"))){
+                return "参数错误";
+            }
+            Integer subsystemId = (Integer) itemMap.get("subsystemId");
+            String tagCode = (String) itemMap.get("tagCode");
+            String beginTime = (String) itemMap.get("beginTime");
+            String endTime = (String) itemMap.get("endTime");
+
+            // String type = defectIncidentInfo.getType();
+//                log.info("tag: {}, {}, {}", defectIncidentInfo.getTagCode(), defectIncidentInfo.getSubsystemId(), defectIncidentInfo.getName());
+                // 查询测点数据
+                List<Double> pointValues = influxDBServiceJR.queryValues(tagCode, Long.valueOf(subsystemId), beginTime, endTime);
+                pointsSB.append("\n");
+                pointsSB.append("测点编码：");
+                pointsSB.append(tagCode);
+                pointsSB.append(", 测点值：[");
+                if (pointValues.size() == 0) {
+                    log.warn("测点: {} 没有数据", tagCode);
+                } else {
+                    for (int i = 0; i < pointValues.size(); i++) {
+                        pointsSB.append(String.valueOf(pointValues.get(i)));
+
+                        if (i != pointValues.size() - 1) {
+                            pointsSB.append(",");
+                        }
+                    }
+                    pointsSB.append("]");
+                    pointsSB.append("\n");
+                }
+            // stringBuilder.append(pointsSB.toString());
+        }
+        return pointsSB.toString();
+    }
+
+    /**
+     * 获取测点的信息，试验测点趋势的传参
+     * @param cached_defectIds 诊断单list
+     * @return
+     */
+    @RequestMapping("/device/tagsInfoList")
+    public Map tagsInfoList(@RequestBody List<Object> cached_defectIds) {
+        Map map = new HashMap();
+        List<Map> resultMap = new ArrayList<>();
+        for (int j = 0; j < cached_defectIds.size(); j++) {
+
+            Object item = cached_defectIds.get(j);
+            Integer incidentId = null;
+            if (item instanceof Map) {
+                Map<String, Object> dataMap = (Map<String, Object>) item;
+                incidentId = (Integer) dataMap.get("incidentId");
+            } else if (item instanceof Integer) {
+                incidentId = (Integer) item;
+            } else if (item instanceof String) {
+                incidentId = Integer.valueOf(String.valueOf(item));
+            }
+            List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(incidentId);
+            Date endTime = defectIncidentInfoList.get(0).getLastTime();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+                    .withZone(ZoneId.of("UTC")); // 关键：必须指定 UTC 时区
+            String endTimeStr = formatter.format(endTime.toInstant());
+
+            // 往前半小时
+            String beginTimeStr = influxDBServiceJR.beforeXMinutes(endTimeStr);
+            for (DefectIncidentInfo defectIncidentInfo : defectIncidentInfoList) {
+                String type = defectIncidentInfo.getType();
+                if (type.equals("测点")) {
+                    Map itemMap = new HashMap();
+                    //                     List<Double> pointValues = influxDBServiceJR.queryValues(defectIncidentInfo.getTagCode(), defectIncidentInfo.getSubsystemId(), beginTimeStr, endTimeStr);
+                    itemMap.put("tagCode", defectIncidentInfo.getTagCode());
+                    itemMap.put("subsystemId", defectIncidentInfo.getSubsystemId());
+                    itemMap.put("beginTime", beginTimeStr);
+                    itemMap.put("endTime", endTimeStr);
+                    resultMap.add(itemMap);
+                }
+            }
+        }
+        map.put("cached_TagsTrendPara", resultMap);
+        return map;
+    }
+
+
+    /**
+     * 测点实际值信息
+     * @param list 诊断单信息
+     * @return
+     */
+    @RequestMapping("/device/tagsRealTime")
+    public String tagsRealTimeValue(@RequestBody List<Object> list) {
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("\n\n## 测点数据\n\n");
         // 遍历同一个设备下的多个诊断单
@@ -442,6 +540,67 @@ public class DeviceHealthyController {
     public String deviceGraph(@RequestParam Integer nodeId) {
         return treeNodeService.deviceGraphCode(nodeId);
         // return root;
+    }
+
+    /**
+     * 获取诊断单, 返回诊断单信息和其他信息
+     * @param deviceRequest
+     * @return
+     */
+    @RequestMapping("/device/healthy/v3")
+    public Map deivceHealthyV3(@RequestBody DeviceRequest deviceRequest) {
+        Map map = new HashMap();
+        String deviceName = deviceRequest.getDevice();
+        log.info("deviceName: {}", deviceName);
+        Date[] dates =DateTool.getStartAndEndTime(deviceRequest);
+        // 查询诊断单
+        List<DefectIncidentInfo> list = defectIncidentInfoMapper.selectDefectIncidentIdListByName(deviceName, dates[0], dates[1]);
+        // 给大模型显示的
+        String llmMsg = list.size() == 0 ? "当前设备无诊断单": String.format("共%d条诊断单记录", list.size());
+        map.put("llmMsg", llmMsg);
+        List<Integer> defectIds = new ArrayList<>();
+        for (DefectIncidentInfo defectIncidentInfo: list) {
+            defectIds.add(defectIncidentInfo.getIncidentId());
+        }
+        map.put("cached_defectIds", defectIds);
+
+        List<Map> resultMap = new ArrayList<>();
+        for (int j = 0; j < defectIds.size(); j++) {
+
+            Object item = defectIds.get(j);
+            Integer incidentId = null;
+            if (item instanceof Map) {
+                Map<String, Object> dataMap = (Map<String, Object>) item;
+                incidentId = (Integer) dataMap.get("incidentId");
+            } else if (item instanceof Integer) {
+                incidentId = (Integer) item;
+            } else if (item instanceof String) {
+                incidentId = Integer.valueOf(String.valueOf(item));
+            }
+            List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(incidentId);
+            Date endTime = defectIncidentInfoList.get(0).getLastTime();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+                    .withZone(ZoneId.of("UTC")); // 关键：必须指定 UTC 时区
+            String endTimeStr = formatter.format(endTime.toInstant());
+
+            // 往前半小时
+            String beginTimeStr = influxDBServiceJR.beforeXMinutes(endTimeStr);
+
+            for (DefectIncidentInfo defectIncidentInfo : defectIncidentInfoList) {
+                String type = defectIncidentInfo.getType();
+                if (type.equals("测点")) {
+                    Map itemMap = new HashMap();
+                    //                     List<Double> pointValues = influxDBServiceJR.queryValues(defectIncidentInfo.getTagCode(), defectIncidentInfo.getSubsystemId(), beginTimeStr, endTimeStr);
+                    itemMap.put("tagCode", defectIncidentInfo.getTagCode());
+                    itemMap.put("subsystemId", defectIncidentInfo.getSubsystemId());
+                    itemMap.put("beginTime", beginTimeStr);
+                    itemMap.put("endTime", endTimeStr);
+                    resultMap.add(itemMap);
+                }
+            }
+        }
+        map.put("cached_TagsTrendPara", resultMap);
+        return map;
     }
 
     // 获取诊断单信息，对外的mcp方法，主要，得到诊断单
