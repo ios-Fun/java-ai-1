@@ -37,6 +37,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         AND di.theunitinstanceid = #{unitId}
         AND dii.last_time >= #{startDate}
         AND dii.last_time &lt;= #{endDate}
+        <if test="closed != null">
+            AND di.closed = CASE WHEN #{closed} = true THEN 1::bit ELSE 0::bit END
+        </if>
     </select>
 
     <select id="selectDefectIncidentById" parameterType="java.lang.Integer" resultMap="BaseResultMap">

@@ -9,4 +9,5 @@ public class UnitHealthyRequest {
     private String endTime;
     private String num;
     private String timeUnit;
+    Boolean closed;
 }

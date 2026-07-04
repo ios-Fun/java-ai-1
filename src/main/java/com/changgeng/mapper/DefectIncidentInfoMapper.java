@@ -10,7 +10,7 @@ public interface DefectIncidentInfoMapper {
     List<DefectIncidentInfo> selectDefectIncidentIdListByName(String deviceName, Date startDate, Date endDate);
 
     // 根据机组名获取诊断单信息
-    List<DefectIncidentInfo> selectDefectIncidentIdListByUnit(Integer unitId, Date startDate, Date endDate);
+    List<DefectIncidentInfo> selectDefectIncidentIdListByUnit(Integer unitId, Date startDate, Date endDate, Boolean closed);
 
     // 根据诊断单获取（故障模式）信息
     List<DefectIncidentInfo> selectDefectIncidentById(Integer defectId);
