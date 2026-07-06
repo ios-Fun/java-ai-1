@@ -1,6 +1,7 @@
 package com.changgeng.client;
 
 import com.changgeng.pojo.IdObj;
+import com.changgeng.tool.InstanceQueryParam;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,4 +18,7 @@ public interface DamCoreClient {
 
     @PostMapping("/api/v1/dam/instance/selectAllUnit")
     Map selectAllUnit();
+
+    @PostMapping("/api/v1/dam/instance/query/select/ignore/distance/by/condition")
+    Map querySelectIgnoreDistanceByCondition(@RequestBody InstanceQueryParam param);
 }

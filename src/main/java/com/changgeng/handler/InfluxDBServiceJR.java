@@ -3,6 +3,7 @@ package com.changgeng.handler;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.support.ExcelTypeEnum;
 import com.changgeng.config.InfluxDBConfig;
+import com.changgeng.pojo.InfluxQueryResult;
 import com.changgeng.pojo.InfluxdbValue;
 import com.changgeng.pojo.RealTimeQueryDto;
 import com.changgeng.pojo.UserCsvDTO;
@@ -107,6 +108,118 @@ public class InfluxDBServiceJR {
             // influxDB.close();
         }
         return values;
+    }
+
+    public InfluxQueryResult queryValuesV2(String tagCode, String tableName, Date beginTime, Date endTime,
+                                           String groupByInterval, Boolean needEstimate, Boolean needSeverity) {
+        List<Double> values = new ArrayList<>();
+        List<String> timestamps = new ArrayList<>();
+
+        // 1. 统一时间格式化
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String beginStr = sdf.format(beginTime);
+        String endStr = sdf.format(endTime);
+
+        // 2. 动态构建 GROUP BY 子句
+        String groupByClause = "";
+        if (groupByInterval != null && !groupByInterval.trim().isEmpty()) {
+            groupByClause = String.format(" GROUP BY time(%s)", groupByInterval);
+        }
+
+        // 3. 构建 SQL
+        String sql = String.format(
+                "SELECT First(Value) AS value FROM %s WHERE TagName = '%s' AND time >= '%s' AND time <= '%s' %s ORDER BY time",
+                tableName, tagCode, beginStr, endStr, groupByClause
+        );
+
+        try {
+            List<QueryResult.Result> results = influxDB.query(new Query(sql)).getResults();
+
+            if (results != null && !results.isEmpty() && results.get(0).getSeries() != null) {
+                List<QueryResult.Series> seriesList = results.get(0).getSeries();
+                if (!seriesList.isEmpty()) {
+                    for (List<Object> row : seriesList.get(0).getValues()) {
+                        // 提取时间戳 (InfluxDB 默认第一列是 time)
+                        Object timeObj = row.get(0);
+                        if (timeObj != null) {
+                            timestamps.add(timeObj.toString()); // 格式如: 2023-10-27T08:00:00Z
+                        }
+
+                        // 提取值 (最后一列)
+                        Object valObj = row.get(row.size() - 1);
+                        if (valObj instanceof Number) {
+                            values.add(((Number) valObj).doubleValue());
+                        } else {
+                            values.add(null); // 保持索引对齐
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        InfluxQueryResult influxQueryResult = new InfluxQueryResult(timestamps, values);
+        if (needEstimate) {
+            List<Double> estimateValues = new ArrayList<>();
+            String[] split = tableName.split("_");
+            sql = String.format(
+                    "SELECT First(Value) AS value FROM %s WHERE TagName = '%s' AND time >= '%s' AND time <= '%s' %s ORDER BY time",
+                    tableName.replace(split[0],  "Estimate"), tagCode, beginStr, endStr, groupByClause
+            );
+            try {
+                List<QueryResult.Result> results = influxDB.query(new Query(sql)).getResults();
+
+                if (results != null && !results.isEmpty() && results.get(0).getSeries() != null) {
+                    List<QueryResult.Series> seriesList = results.get(0).getSeries();
+                    if (!seriesList.isEmpty()) {
+                        for (List<Object> row : seriesList.get(0).getValues()) {
+                            // 提取值 (最后一列)
+                            Object valObj = row.get(row.size() - 1);
+                            if (valObj instanceof Number) {
+                                estimateValues.add(((Number) valObj).doubleValue());
+                            } else {
+                                estimateValues.add(null); // 保持索引对齐
+                            }
+                        }
+                    }
+                }
+                influxQueryResult.setEstimateValues(estimateValues);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        if (needSeverity) {
+            List<Double> severity = new ArrayList<>();
+            String[] split = tableName.split("_");
+            sql = String.format(
+                    "SELECT First(Severity) AS value FROM %s WHERE TagName = '%s' AND time >= '%s' AND time <= '%s' %s ORDER BY time",
+                    tableName.replace(split[0],  "TagSeverity"), tagCode, beginStr, endStr, groupByClause
+            );
+            try {
+                List<QueryResult.Result> results = influxDB.query(new Query(sql)).getResults();
+
+                if (results != null && !results.isEmpty() && results.get(0).getSeries() != null) {
+                    List<QueryResult.Series> seriesList = results.get(0).getSeries();
+                    if (!seriesList.isEmpty()) {
+                        for (List<Object> row : seriesList.get(0).getValues()) {
+                            // 提取值 (最后一列)
+                            Object valObj = row.get(row.size() - 1);
+                            if (valObj instanceof Number) {
+                                severity.add(((Number) valObj).doubleValue());
+                            } else {
+                                severity.add(null); // 保持索引对齐
+                            }
+                        }
+                    }
+                }
+                influxQueryResult.setSeverity(severity);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        // 返回封装好的对象
+        return influxQueryResult;
     }
 
     public String beforeXMinutes(String dateStr) {
