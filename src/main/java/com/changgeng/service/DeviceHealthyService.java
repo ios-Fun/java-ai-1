@@ -3,7 +3,12 @@ package com.changgeng.service;
 import com.changgeng.client.DamCoreClient;
 import com.changgeng.client.FastgptClient;
 import com.changgeng.config.RagConfig;
+import com.changgeng.handler.InfluxDBServiceJR;
+import com.changgeng.mapper.DefectIncidentInfoMapper;
+import com.changgeng.model.DefectIncidentInfo;
 import com.changgeng.pojo.IdObj;
+import com.changgeng.pojo.InfluxQueryResult;
+import com.changgeng.tool.CommonTool;
 import com.changgeng.tree.MultiTreeNode;
 import com.changgeng.tree.TreeNodeService;
 import com.changgeng.tree.TreeNodeValue;
@@ -13,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -29,6 +35,12 @@ public class DeviceHealthyService {
 
     @Autowired
     TreeNodeService treeNodeService;
+
+    @Autowired
+    DefectIncidentInfoMapper defectIncidentInfoMapper;
+
+    @Autowired
+    InfluxDBServiceJR influxDBServiceJR;
 
     public String deviceRag(@RequestParam String tagName) {
         log.info("tagName: {}", tagName);
@@ -118,5 +130,29 @@ public class DeviceHealthyService {
         }
         returnStrs[1] = tagsStringBuilder.toString();
         return returnStrs;
+    }
+
+    public Map<String, InfluxQueryResult> incidentTagsTrend(String assetName) {
+        Map<String, InfluxQueryResult> res = new HashMap<>();
+        List<DefectIncidentInfo> defectIncidentInfos = defectIncidentInfoMapper.selectOpenedIncidentAssetName();
+        List<String> collect = defectIncidentInfos.stream().map(item -> item.getName()).collect(Collectors.toList());
+        String bestMatchingStr = CommonTool.getBestMatchingStr(collect, assetName);
+        Optional<DefectIncidentInfo> first = defectIncidentInfos.stream().filter(one -> one.getName().equals(bestMatchingStr)).findFirst();
+        if (first.isPresent()) {
+            DefectIncidentInfo defectIncidentInfo = first.get();
+            Long nodeId = defectIncidentInfo.getNodeId();
+            List<DefectIncidentInfo> defectIncidentInfos1 = defectIncidentInfoMapper.selectOpenedIncidentAssetTagsByAssetId(nodeId);
+            if (defectIncidentInfos1 != null && !defectIncidentInfos1.isEmpty()) {
+                for (DefectIncidentInfo defectIncidentInfo1 : defectIncidentInfos1) {
+                    Long subsystemId = defectIncidentInfo1.getSubsystemId();
+                    String tagCode = defectIncidentInfo1.getTagCode();
+                    Date endTime = defectIncidentInfo1.getLastTime();
+                    Date beginTime = new Date(endTime.getTime() - 8 * 60 * 60 * 1000);
+                    InfluxQueryResult influxQueryResult = influxDBServiceJR.queryValuesV2(tagCode, "RealTimeData_" + subsystemId, beginTime, endTime, "1m", true, true);
+                    res.put(tagCode, influxQueryResult);
+                }
+            }
+        }
+        return res;
     }
 }

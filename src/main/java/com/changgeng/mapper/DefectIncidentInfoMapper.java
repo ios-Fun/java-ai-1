@@ -1,6 +1,7 @@
 package com.changgeng.mapper;
 
 import com.changgeng.model.DefectIncidentInfo;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.Date;
 import java.util.List;
@@ -20,4 +21,10 @@ public interface DefectIncidentInfoMapper {
 
     // 根据诊断单获取（故障模式，特征，测点）信息
     List<DefectIncidentInfo> selectDefectIncidentListById(Integer defectId);
+
+    // 获取所有未关闭诊断单内设备与其对应id
+    List<DefectIncidentInfo> selectOpenedIncidentAssetName();
+
+    // 根据设备id获取对应未关闭诊断单内所有测点信息
+    List<DefectIncidentInfo> selectOpenedIncidentAssetTagsByAssetId(@Param("assetId") Long assetId);
 }

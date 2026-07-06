@@ -24,6 +24,36 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result column="alarm_type" jdbcType="VARCHAR" property="alarmType" />
     </resultMap>
 
+    <select id="selectOpenedIncidentAssetName" resultMap="BaseResultMap">
+        SELECT DISTINCT
+            dii.node_id,
+            dii.name
+        FROM defect_incident_info dii
+            JOIN defectincident di ON di.defectincidentid = dii.incident_id
+        WHERE dii.type = '设备'
+        AND di.closed = '0'
+    </select>
+
+    <select id="selectOpenedIncidentAssetTagsByAssetId" resultMap="BaseResultMap">
+        SELECT DISTINCT
+            dii.subsystem_id,
+            dii.node_id,
+            dii.tag_code,
+            dii.last_time
+        FROM defect_incident_info dii
+        WHERE dii.incident_id = (
+            SELECT di.defectincidentid
+            FROM defectincident di
+                     JOIN defect_incident_info dii ON di.defectincidentid = dii.incident_id
+            WHERE dii.type = '设备'
+              AND dii.node_id = #{assetId}
+              AND di.closed = '0'
+            ORDER BY di.lastoccureddatetime DESC
+            LIMIT 1
+            )
+          AND dii.tag_code IS NOT NULL;
+    </select>
+
     <select id="selectDefectIncidentIdListByName" resultMap="BaseResultMap">
         select * from defect_incident_info where name = #{deviceName} and type not in ('特征', '测点', '故障模式')
             and last_time >= #{startDate} and last_time &lt;= #{endDate}

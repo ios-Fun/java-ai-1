@@ -150,6 +150,17 @@ public class DeviceHealthyController {
     }
 
     /**
+     * 未关闭报警单内设备下测点时间戳，实际值，估计值，严重度
+     * 统计时间为最后触发时间前8小时，默认数据间隔1分钟
+     *
+     * @return 以测点编码分组的实际值，估计值，严重度
+     */
+    @RequestMapping("/device/incidentTagsTrend")
+    public Map incidentTagsTrend(@RequestParam String assetName) {
+        return deviceHealthyService.incidentTagsTrend(assetName);
+    }
+
+    /**
      * 测点的趋势图信息，应该是多个测点，对应不同的时间，包含了实际值，估计值
      * @param cached_TagsTrendPara 上一个mcp方法缓存的
      * @return
