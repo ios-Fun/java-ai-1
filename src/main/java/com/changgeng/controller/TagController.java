@@ -4,7 +4,6 @@ package com.changgeng.controller;
 import com.changgeng.client.DamExtClient;
 import com.changgeng.common.result.Result;
 import com.changgeng.handler.InfluxDBServiceJR;
-import com.changgeng.pojo.NodeInfo;
 import com.changgeng.service.TagService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
