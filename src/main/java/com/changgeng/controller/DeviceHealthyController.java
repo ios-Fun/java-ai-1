@@ -161,6 +161,16 @@ public class DeviceHealthyController {
     }
 
     /**
+     * 未关闭报警单内设备下测点特征
+     *
+     * @return 以测点编码分组的实际值，估计值，严重度
+     */
+    @RequestMapping("/device/incidentTagsAttr")
+    public Map incidentTagsAttr(@RequestParam String assetName) {
+        return deviceHealthyService.incidentTagsAttr(assetName);
+    }
+
+    /**
      * 测点的趋势图信息，应该是多个测点，对应不同的时间，包含了实际值，估计值
      * @param cached_TagsTrendPara 上一个mcp方法缓存的
      * @return
