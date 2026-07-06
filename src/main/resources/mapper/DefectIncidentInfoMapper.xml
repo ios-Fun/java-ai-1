@@ -22,6 +22,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result column="status" jdbcType="VARCHAR" property="status" />
         <result column="is_red" jdbcType="VARCHAR" property="isRed" />
         <result column="alarm_type" jdbcType="VARCHAR" property="alarmType" />
+        <result column="closed" jdbcType="BIT" property="closed" />
     </resultMap>
 
     <select id="selectDefectIncidentIdListByName" resultMap="BaseResultMap">
@@ -30,7 +31,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectDefectIncidentIdListByUnit" resultMap="BaseResultMap">
-        SELECT dii.*
+        SELECT dii.*,di.closed
         FROM defect_incident_info dii
         JOIN defectincident di ON di.defectincidentid = dii.incident_id
         WHERE dii.type NOT IN ('特征', '测点', '故障模式')
@@ -40,6 +41,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <if test="closed != null">
             AND di.closed = CASE WHEN #{closed} = true THEN 1::bit ELSE 0::bit END
         </if>
+        ORDER BY dii.last_time DESC
     </select>
 
     <select id="selectDefectIncidentById" parameterType="java.lang.Integer" resultMap="BaseResultMap">

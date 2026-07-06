@@ -24,5 +24,6 @@ public class DefectIncidentInfo {
     String status;
     String isRed;
     String alarmType;
+    Integer closed;
 
 }

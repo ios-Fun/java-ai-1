@@ -4,9 +4,11 @@ import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.support.ExcelTypeEnum;
 import com.changgeng.config.InfluxDBConfig;
 import com.changgeng.pojo.InfluxdbValue;
+import com.changgeng.pojo.RealTimeQueryDto;
 import com.changgeng.pojo.UserCsvDTO;
 import lombok.extern.java.Log;
 import okhttp3.OkHttpClient;
+import org.apache.http.client.utils.DateUtils;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBException;
 import org.influxdb.InfluxDBFactory;
@@ -533,4 +535,66 @@ public class InfluxDBServiceJR {
         return allValuesMap;
     }
 
+
+    public List<Map> queryValues3(String tagName, Integer subsystemId, String startTime, String endTime, String type) {
+        if (type.isEmpty()) return new ArrayList<>();
+
+        List<Map> resultList = new ArrayList<>();
+        try {
+            String sql;
+            if ("TagSeverity".equals(type)) {
+                sql = String.format(
+                    "select TagName as tagName, Severity as value, Valid as valid, time from %s_%d where TagName = '%s' and time >= '%s' and time <= '%s' order by time",
+                    type, subsystemId, tagName, startTime, endTime
+                );
+            } else {
+                sql = String.format(
+                    "select TagName as tagName, Value as value, Valid as valid, time from %s_%d where TagName = '%s' and time >= '%s' and time <= '%s' order by time",
+                    type, subsystemId, tagName, startTime, endTime
+                );
+            }
+
+            // 执行查询
+            List<QueryResult.Result> results = influxDB.query(new Query(sql)).getResults();
+
+            if (results != null && !results.isEmpty() && results.get(0).getSeries() != null) {
+                List<QueryResult.Series> seriesList = results.get(0).getSeries();
+
+                if (seriesList != null && !seriesList.isEmpty()) {
+                    QueryResult.Series series = seriesList.get(0);
+                    List<List<Object>> values = series.getValues();
+
+                    if (values != null && !values.isEmpty()) {
+                        log.info("查询成功,返回 " + values.size() + " 条数据");
+                        for (List<Object> row : values) {
+                            Map<String, Object> dataMap = new HashMap<>();
+
+                            if (row.size() >= 4) {
+                                String time = (String) row.get(0);
+                                String tag = (String) row.get(1);
+                                Double value = row.get(2) != null ? ((Number) row.get(2)).doubleValue() : null;
+                                Boolean valid = row.get(3) != null ? (Boolean) row.get(3) : false;
+                                dataMap.put("time", time);
+                                dataMap.put("tagName", tag);
+                                dataMap.put("value", value);
+                                dataMap.put("valid", valid);
+                                resultList.add(dataMap);
+                            }
+                        }
+                    } else {
+                        log.warning("查询结果为空,该时间段内无数据");
+                    }
+                }
+            } else {
+                log.warning("查询结果为空或格式不正确");
+            }
+
+        } catch (Exception e) {
+            log.severe("查询测点数据失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return resultList;
+
+    }
 }
