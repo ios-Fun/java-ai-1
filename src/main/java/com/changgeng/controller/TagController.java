@@ -30,7 +30,7 @@ public class TagController {
     /**
      * 测点信息查询接口
      * 支持两种方式:
-     * 1. 精确查询: 通过 tagId(测点ID)、tagCode(测点编码)、srcTagName(源标签点名) 三者之一进行精确匹配
+     * 1. 精确查询: 通过 tagId(测点ID)、tagName(测点编码)、srcTagName(源标签点名) 三者之一进行精确匹配
      * 2. 模糊查询: 通过 tagName(测点名称) 进行模糊匹配
      *
      * 请求参数说明:
@@ -44,7 +44,7 @@ public class TagController {
     public Result setTagInfos(@RequestParam(required = false) Integer tagId, @RequestParam(required = false) String tagName, @RequestParam(required = false) String srcTagName,
                               @RequestParam(required = false) String name
     ) {
-        log.info("查询测点信息 - tagId: {}, tagCode: {}, srcTagName: {}, tagName: {}", tagId, tagName, srcTagName, name);
+        log.info("查询测点信息 - tagId: {}, tagName: {}, srcTagName: {}, tagName: {}", tagId, tagName, srcTagName, name);
 
         if (tagId == null && tagName == null && srcTagName == null && name == null) {
             return Result.error(400, "至少输入1个参数");
@@ -102,7 +102,7 @@ public class TagController {
             @RequestParam(required = false) String endTime,
             @RequestParam(required = true) String type
     ) {
-        log.info("查询测点历史数据 - tagId: {}, tagCode: {}, srcTagName: {}, startTime: {}, endTime: {}, type: {}",
+        log.info("查询测点历史数据 - tagId: {}, tagName: {}, srcTagName: {}, startTime: {}, endTime: {}, type: {}",
                 tagId, tagName, srcTagName, startTime, endTime,  type);
         if (tagId == null && tagName == null && srcTagName == null) {
             return Result.error(400, "至少输入1个参数");
