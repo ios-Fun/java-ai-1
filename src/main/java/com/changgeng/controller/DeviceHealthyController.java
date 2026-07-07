@@ -152,7 +152,8 @@ public class DeviceHealthyController {
     /**
      * 未关闭报警单内设备下测点时间戳，实际值，估计值，严重度
      * 统计时间为最后触发时间前8小时，默认数据间隔1分钟
-     *
+     * 请求参数说明：
+     * - assetName: 设备名称
      * @return 以测点编码分组的实际值，估计值，严重度
      */
     @RequestMapping("/device/incidentTagsTrend")
@@ -162,7 +163,8 @@ public class DeviceHealthyController {
 
     /**
      * 未关闭报警单内设备下测点特征
-     *
+     * 请求参数说明：
+     * - assetName: 设备名称
      * @return 以测点编码分组的实际值，估计值，严重度
      */
     @RequestMapping("/device/incidentTagsAttr")
