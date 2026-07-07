@@ -5,7 +5,6 @@ import com.alibaba.excel.support.ExcelTypeEnum;
 import com.changgeng.config.InfluxDBConfig;
 import com.changgeng.pojo.InfluxQueryResult;
 import com.changgeng.pojo.InfluxdbValue;
-import com.changgeng.pojo.RealTimeQueryDto;
 import com.changgeng.pojo.UserCsvDTO;
 import lombok.extern.java.Log;
 import okhttp3.OkHttpClient;
