@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.changgeng.mapper.AlarmTableMapper">
+    
+    <resultMap id="BaseResultMap" type="java.util.HashMap">
+        <result column="id" jdbcType="INTEGER" property="id"/>
+        <result column="tagname" jdbcType="VARCHAR" property="tagName"/>
+        <result column="tag_source_name" jdbcType="VARCHAR" property="tagSourceName"/>
+        <result column="firsttouchtime" jdbcType="TIMESTAMP" property="firstTouchTime"/>
+        <result column="lasttouchtime" jdbcType="TIMESTAMP" property="lastTouchTime"/>
+        <result column="assetnumber" jdbcType="INTEGER" property="assetNumber"/>
+        <result column="data_type" jdbcType="VARCHAR" property="dataType"/>
+        <result column="tag_id" jdbcType="BIGINT" property="tagId"/>
+        <result column="monitor_point_id" jdbcType="BIGINT" property="monitorPointId"/>
+        <result column="unit_id" jdbcType="INTEGER" property="unitId"/>
+        <result column="closed" jdbcType="BOOLEAN" property="closed"/>
+        <result column="alarmtype" jdbcType="VARCHAR" property="alarmType"/>
+        <result column="alarmupdatetime" jdbcType="TIMESTAMP" property="alarmUpdateTime"/>
+        <result column="tag_description" jdbcType="VARCHAR" property="tagDescription"/>
+        <result column="currentstatusname" jdbcType="VARCHAR" property="currentStatusName"/>
+        <result column="currentstatuscomment" jdbcType="VARCHAR" property="currentStatusComment"/>
+        <result column="alarm_status" jdbcType="VARCHAR" property="alarmStatus"/>
+        <result column="alarmlevel" jdbcType="VARCHAR" property="alarmLevel"/>
+        <result column="actual" jdbcType="VARCHAR" property="actual"/>
+        <result column="unit" jdbcType="VARCHAR" property="unit"/>
+    </resultMap>
+
+    <select id="selectAlarmList" resultMap="BaseResultMap">
+        SELECT *
+        FROM alarmtable
+        <where>
+            <if test="request.tagName != null and request.tagName != ''">
+                AND tagname = #{request.tagName}
+            </if>
+            <if test="request.tagSourceName != null and request.tagSourceName != ''">
+                AND tag_source_name = #{request.tagSourceName}
+            </if>
+            <if test="request.endTime != null and request.endTime != null">
+                AND lasttouchtime between #{request.startTime} AND #{request.endTime}
+            </if>
+            <if test="request.assetNumber != null">
+                AND assetnumber = #{request.assetNumber}
+            </if>
+            <if test="request.dataType != null and request.dataType != ''">
+                AND data_type = #{request.dataType}
+            </if>
+            <if test="request.tagId != null">
+                AND tag_id = #{request.tagId}
+            </if>
+            <if test="request.monitorPointId != null">
+                AND monitor_point_id = #{request.monitorPointId}
+            </if>
+            <if test="request.unitId != null">
+                AND unit_id = #{request.unitId}
+            </if>
+            <if test="request.closed != null">
+                AND closed = #{request.closed}
+            </if>
+            <if test="request.currentStatusName != null">
+                AND currentStatusName = #{request.currentStatusName}
+            </if>
+        </where>
+        ORDER BY lasttouchtime DESC
+        <if test="request.AI != null and request.AI==true">
+            LIMIT 100
+        </if>
+    </select>
+
+</mapper>

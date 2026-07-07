@@ -32,4 +32,67 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select * from defectincident where defectincidentid = #{defectId} limit 1
     </select>
 
+    <select id="selectSystemIncidentList" resultType="com.changgeng.pojo.SystemIncidentInfo">
+        select system_incident_id as systemIncidentId,
+            system_id as systemId,
+            unit_id as unitId,
+            current_status as currentStatus,
+            trigger_time as triggerTime,
+            last_deal_time as lastDealTime,
+            severity_level as severityLevel,
+            severity as severity,
+            handled_user_id as handledUserId,
+            closed as closed
+        from systemincident
+        <where>
+            <if test="request.closed != null">
+                closed = #{request.closed}
+            </if>
+            <if test="request.systemId != null">
+                AND system_id = #{request.systemId}
+            </if>
+            <if test="request.unitId != null">
+                AND unit_id = #{request.unitId}
+            </if>
+            <if test="request.startTime != null and request.endTime != null">
+                AND trigger_time between #{request.startTime} AND #{request.endTime}
+            </if>
+            <if test="request.currentStatus != null">
+                AND current_status = #{request.currentStatus}
+            </if>
+        </where>
+        ORDER BY trigger_time DESC
+    </select>
+    <select id="selectSubSystemIncidentList" resultType="com.changgeng.pojo.SystemIncidentInfo">
+        select subsystem_incident_id as subSystemIncidentId,
+            subsystem_id as subSystemId,
+            unit_id as unitId,
+            current_status as currentStatus,
+            trigger_time as triggerTime,
+            last_deal_time as lastDealTime,
+            severity_level as severityLevel,
+            severity as severity,
+            handled_user_id as handledUserId,
+            closed as closed
+        from subsystemincident
+        <where>
+            <if test="request.closed != null">
+                closed = #{request.closed}
+            </if>
+            <if test="request.systemId != null">
+                AND subsystem_id = #{request.systemId}
+            </if>
+            <if test="request.unitId != null">
+                AND unit_id = #{request.unitId}
+            </if>
+            <if test="request.startTime != null and request.endTime != null">
+                AND trigger_time between #{request.startTime} AND #{request.endTime}
+            </if>
+            <if test="request.currentStatus != null">
+                AND current_status = #{request.currentStatus}
+            </if>
+        </where>
+        ORDER BY trigger_time DESC
+    </select>
+
 </mapper>

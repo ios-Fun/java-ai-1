@@ -9,9 +9,12 @@ import com.changgeng.common.result.Result;
 import com.changgeng.handler.InfluxDBServiceJR;
 import com.changgeng.handler.ReadCSVService;
 import com.changgeng.mapper.AlarmDefectsMapper;
+import com.changgeng.mapper.AlarmTableMapper;
 import com.changgeng.mapper.DefectIncidentInfoMapper;
 import com.changgeng.mapper.DefectIncidentMapper;
 import com.changgeng.model.DefectIncidentInfo;
+import com.changgeng.pojo.AlarmListRequest;
+import com.changgeng.pojo.SystemIncidentRequest;
 import com.changgeng.pojo.UnitHealthyRequest;
 import com.changgeng.pojo.UnitIncidentDTO;
 import com.changgeng.service.DeviceHealthyService;
@@ -46,6 +49,8 @@ public class UnitController {
     DefectIncidentMapper defectIncidentMapper;
     @Autowired
     AlarmDefectsMapper alarmDefectsMapper;
+    @Autowired
+    AlarmTableMapper alarmTableMapper;
     @Autowired
     ReadCSVService readCSVService;
     @Autowired
@@ -243,6 +248,69 @@ public class UnitController {
         return result;
     }
 
+    /**
+     * 测点报警单列表查询接口
+     * 根据传入的多个条件参数查询 alarmtable 表中的告警信息，支持多维度筛选
+     *
+     * 请求参数说明：
+     * - tagName: 测点名称（可选），用于模糊匹配 tagname 字段
+     * - tagSourceName: 测点来源名称（可选），用于筛选特定来源的测点
+     * - startTime: 开始时间（可选），查询 firsttouchtime >= 该时间的告警记录
+     * - endTime: 结束时间（可选），查询 lasttouchtime <= 该时间的告警记录
+     * - assetNumber: 设备编号（可选），用于筛选特定设备的告警
+     * - dataType: 数据类型（可选），如 "告警"、"缺陷" 等
+     * - tagId: 测点ID（可选），精确查询某个测点的告警
+     * - monitorPointId: 监测点ID（可选），查询指定监测点的告警
+     * - unitId: 机组ID（可选），查询特定机组下的所有告警
+     * - closed: 是否已关闭（可选，默认false），true表示查询已关闭的告警，false表示查询未关闭的告警
+     * - AI: 是否为AI请求（可选，默认true）
+     *
+     * @param request 告警列表查询请求参数
+     * @return 告警信息列表，包含测点名称、告警类型、严重度等级、触发时间、处理状态等字段
+     */
+    @RequestMapping("/getAlarmList")
+    public Result getAlarmList(@RequestBody AlarmListRequest request) {
+        return Result.success(unitService.getAlarmList(request));
+    }
 
+    /**
+     * 系统诊断单列表查询接口
+     * 根据传入的多个条件参数查询 systemincident 表中的系统诊断单信息，支持多维度筛选
+     *
+     * 请求参数说明：
+     * - systemId: 系统ID（可选），查询特定系统的诊断单
+     * - unitId: 机组ID（可选），查询特定机组下的系统诊断单
+     * - startTime: 开始时间（可选），与 endTime 配合使用，查询触发时间在该范围内的诊断单
+     * - endTime: 结束时间（可选），与 startTime 配合使用，查询触发时间在该范围内的诊断单
+     * - currentStatus: 当前状态（可选），如 "待处理"、"处理中"、"已关闭" 等
+     * - closed: 是否已关闭（可选，默认false），true表示查询已关闭的诊断单，false表示查询未关闭的诊断单
+     *
+     * @param request 系统诊断单查询请求参数
+     * @return 系统诊断单列表，包含诊断单ID、严重度、当前状态、触发时间、处理时间等字段
+     */
+    @RequestMapping("/getSystemIncidentList")
+    public Result getSystemIncidentList(@RequestBody SystemIncidentRequest request) {
+        return Result.success(unitService.getSystemIncidentList(request));
+    }
+
+    /**
+     * 子系统诊断单列表查询接口
+     * 根据传入的多个条件参数查询 subsystemincident 表中的子系统诊断单信息，支持多维度筛选
+     *
+     * 请求参数说明：
+     * - subSystemId: 系统ID（可选），查询特定子系统的诊断单
+     * - unitId: 机组ID（可选），查询特定机组下的子系统诊断单
+     * - startTime: 开始时间（可选），与 endTime 配合使用，查询触发时间在该范围内的诊断单
+     * - endTime: 结束时间（可选），与 startTime 配合使用，查询触发时间在该范围内的诊断单
+     * - currentStatus: 当前状态（可选），如 "待处理"、"处理中"、"已关闭" 等
+     * - closed: 是否已关闭（可选，默认false），true表示查询已关闭的诊断单，false表示查询未关闭的诊断单
+     *
+     * @param request 子系统诊断单查询请求参数
+     * @return 子系统诊断单列表，包含诊断单ID、严重度、当前状态、触发时间、处理时间等字段
+     */
+    @RequestMapping("/getSubSystemIncidentList")
+    public Result getSubSystemIncidentList(@RequestBody SystemIncidentRequest request) {
+        return Result.success(unitService.getSubSystemIncidentList(request));
+    }
 
 }
