@@ -90,8 +90,9 @@ public class UnitController {
         Boolean ragIN = false;
 
         String unitName = request.getUnitName();
-        List<UnitIncidentDTO> unitIncidentList = getUnitIncidentMap(request);
-        if (unitIncidentList.isEmpty()) return "机组信息正常";
+        Object uil = getUnitIncidentMap(request).getData();
+        List<UnitIncidentDTO> unitIncidentList = uil instanceof String ? new ArrayList<>() : (List<UnitIncidentDTO>) uil ;
+        if (unitIncidentList.isEmpty()) return "未查到机组信息，或该机组下无诊断单。";
 
         StringBuilder stringBuilder = new StringBuilder();
         String ragText = "";
@@ -223,29 +224,27 @@ public class UnitController {
      * @return 机组诊断单列表，每项包含 unitId、unitName、incidents
      */
     @RequestMapping("/selectIncidents")
-    public List<UnitIncidentDTO> getUnitIncidentMap(@RequestBody UnitHealthyRequest request) {
+    public Result getUnitIncidentMap(@RequestBody UnitHealthyRequest request) {
         String unitName = request.getUnitName();
+        List<Map> allUnits = unitService.matchUnits(unitName);
         Date[] dates = DateTool.getStartAndEndTime(request);
-        List<Map<String,Object>> allUnits = (List<Map<String, Object>>) damCoreClient.selectAllUnit().get("data");
         Boolean closed = request.getClosed();
-        List<UnitIncidentDTO> result = new ArrayList<>();
-        if (allUnits != null) {
-            for (Map<String, Object> unit : allUnits) {
-                String uName = (String) unit.get("unitName");
-                if (uName != null && uName.contains(unitName)) {
-                    Integer unitId = (Integer) unit.get("unitId");
+        List<UnitIncidentDTO> result = allUnits.stream()
+                .filter(map -> (Boolean) map.get("matched") != false)
+                .map(map -> {
+                    Integer unitId = (Integer) map.get("unitId");
                     List<DefectIncidentInfo> unitList = defectIncidentInfoMapper.selectDefectIncidentIdListByUnit(unitId, dates[0], dates[1], closed);
+                    UnitIncidentDTO unitIncidentDTO = new UnitIncidentDTO();
                     if (unitList.size() > 0) {
-                        UnitIncidentDTO dto = new UnitIncidentDTO();
-                        dto.setUnitId(unitId);
-                        dto.setUnitName(uName);
-                        dto.setIncidents(unitList);
-                        result.add(dto);
+                        unitIncidentDTO.setUnitId(unitId);
+                        unitIncidentDTO.setUnitName((String) map.get("unitName"));
+                        unitIncidentDTO.setIncidents(unitList);
                     }
-                }
-            }
-        }
-        return result;
+                    return unitIncidentDTO;
+                }).collect(Collectors.toList());
+        return result.isEmpty()
+                ? Result.success("未查到相关机组信息，当前数据中存在机组："+allUnits)
+                : Result.success(result);
     }
 
     /**

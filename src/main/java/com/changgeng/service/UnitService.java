@@ -1,5 +1,6 @@
 package com.changgeng.service;
 
+import com.changgeng.client.DamCoreClient;
 import com.changgeng.client.DamExtClient;
 import com.changgeng.mapper.AlarmTableMapper;
 import com.changgeng.mapper.DefectIncidentMapper;
@@ -18,6 +19,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class UnitService {
 
+    @Autowired
+    DamCoreClient damCoreClient;
     @Autowired
     DamExtClient damExtClient;
     @Autowired
@@ -43,5 +46,23 @@ public class UnitService {
     public List<SystemIncidentInfo> getSubSystemIncidentList(SystemIncidentRequest request) {
         List<SystemIncidentInfo> list = defectIncidentMapper.selectSubSystemIncidentList(request);
         return list;
+    }
+
+    public List<Map> matchUnits(String unitName) {
+        List<Map> allUnits = (List<Map>) damCoreClient.selectAllUnit().get("data");
+        List<Map> result = new ArrayList<>();
+        if (allUnits != null) {
+            for (Map<String, Object> unit : allUnits) {
+                String uName = (String) unit.get("unitName");
+                if (uName != null && uName.contains(unitName)) {
+//                    Map<String, Object> unitInfo = new HashMap<>();
+//                    unitInfo.put("unitId", unit.get("unitId"));
+//                    unitInfo.put("unitName", uName);
+//                    result.add(unitInfo);
+                    unit.put("matched", true);
+                }else unit.put("matched", false);
+            }
+        }
+        return allUnits;
     }
 }
