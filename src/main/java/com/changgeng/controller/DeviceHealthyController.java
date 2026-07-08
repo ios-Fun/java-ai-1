@@ -83,6 +83,48 @@ public class DeviceHealthyController {
     @Autowired
     private DamExtClient damExtClient;
 
+    /**
+     * 根据设备名称，匹配是否存在完全相同，或相似的，且正处于报警未确认状态的设备
+     * <p>
+     * 请求参数说明：
+     * - assetName: 设备名称（必填），如 "汽轮机"
+     *
+     * @param assetName 设备名称
+     * @return 当能完全匹配，equals字段为true，返回的第一条likelyAssetNames是匹配设备
+     * 否则，返回相似的likelyAssetNames
+     */
+    @RequestMapping("/abnormal/asset")
+    public Map<String, Object> abnormalAsset(@RequestParam String assetName) {
+        List<String> likelyAssetNames = deviceHealthyService.getLikelyAssetNames(assetName);
+        Boolean equals = false;
+        for (String likelyAssetName : likelyAssetNames) {
+            if (likelyAssetName.equals(assetName)) {
+                equals = true;
+                break;
+            }
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("equals", equals);
+        result.put("likelyAssetNames", likelyAssetNames);
+        return result;
+    }
+
+    /**
+     * 根据设备名称，匹配是否存在完全相同，或相似的，且正处于报警未确认状态的设备
+     * <p>
+     * 请求参数说明：
+     * - assetName: 设备名称（必填），如 "汽轮机"
+     * - duration:  时序追溯事件（非必填），时间仅能选择1h，8h，1d，指代1小时，8小时，1天，可缺省，默认为1h
+     *
+     * @param assetName 设备名称
+     * @param duration
+     * @return 返回匹配到的设备的测点信息，包括时序数据和基础的测点属性
+     */
+    @RequestMapping("/abnormal/asset/incident")
+    public Map<String, Map> abnormalAssetIncident(@RequestParam String assetName, @RequestParam(required = false) String duration) {
+        return deviceHealthyService.getUnClosedIncidentTagsByAssetName(assetName, duration);
+    }
+
 
     /**
      * 设备测点关系接口

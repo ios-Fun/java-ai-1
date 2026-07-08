@@ -27,4 +27,10 @@ public interface DefectIncidentInfoMapper {
 
     // 根据设备id获取对应未关闭诊断单内所有测点信息
     List<DefectIncidentInfo> selectOpenedIncidentAssetTagsByAssetId(@Param("assetId") Long assetId);
+
+    // 获取所有未关闭诊断单内设备名称
+    List<String> getUnClosedIncidentAssetNames();
+
+    // 获取未关闭的单子下，包含指定设备的测点
+    List<DefectIncidentInfo> getUnClosedIncidentByAssetName(@Param("assetName") String assetName);
 }

@@ -86,4 +86,38 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select * from defect_incident_info where incident_id = #{defectId}
     </select>
 
+    <select id="getUnClosedIncidentAssetNames" resultType="String">
+        SELECT DISTINCT t.name
+        FROM public.defect_incident_info t
+                 INNER JOIN defectincident d
+                            ON t.incident_id = d.defectincidentid
+        WHERE
+            d.closed = '0'
+          AND EXISTS (
+            SELECT 1
+            FROM public.defect_incident_info sub
+            WHERE sub.incident_id = t.incident_id
+              AND sub.type IN ('设备', '故障模式', '系统')
+            GROUP BY sub.incident_id
+            HAVING
+                COUNT(DISTINCT CASE WHEN sub.type IN ('设备', '故障模式') THEN sub.type END) = 2
+               AND COUNT(CASE WHEN sub.type = '系统' THEN 1 END) = 0
+        )
+          AND t.type = '设备';
+    </select>
+    <select id="getUnClosedIncidentByAssetName" resultMap="BaseResultMap" parameterType="String">
+        SELECT t.*
+        FROM public.defect_incident_info t
+                 INNER JOIN defectincident d ON t.incident_id = d.defectincidentid
+        WHERE
+            t.type = '测点'
+          AND d.closed = '0'
+          AND EXISTS (
+            SELECT 1
+            FROM public.defect_incident_info sub
+            WHERE sub.incident_id = t.incident_id
+              AND sub.type = '设备'
+              AND sub.name = #{assetName}
+        );
+    </select>
 </mapper>

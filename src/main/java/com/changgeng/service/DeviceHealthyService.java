@@ -14,12 +14,14 @@ import com.changgeng.tree.MultiTreeNode;
 import com.changgeng.tree.TreeNodeService;
 import com.changgeng.tree.TreeNodeValue;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -207,5 +209,73 @@ public class DeviceHealthyService {
                 "反向惩罚：若 高高报 < 真实值 为 10；若 高报 < 真实值 为 7。";
         res.put("严重度计算逻辑", rule);
         return res;
+    }
+
+    Double threshold = 0.3;
+    public List<String> getLikelyAssetNames(String assetName) {
+        List<String> unClosedIncidentAssetNames = defectIncidentInfoMapper.getUnClosedIncidentAssetNames();
+        if (unClosedIncidentAssetNames != null && !unClosedIncidentAssetNames.isEmpty()) {
+            return unClosedIncidentAssetNames.stream()
+                    // 1. 计算相似度并封装成对象，避免计算两次
+                    .map(device -> new ScoredDevice(device, CommonTool.mixedSimilarity(device, assetName)))
+                    // 2. 过滤出大于阈值的设备
+                    .filter(scored -> scored.score >= threshold)
+                    // 3. 按相似度从大到小排序
+                    .sorted((a, b) -> Double.compare(b.score, a.score))
+                    // 4. 提取出设备名称
+                    .map(scored -> scored.device)
+                    .collect(Collectors.toList());
+        }
+        return new ArrayList<>();
+    }
+
+    public Map<String, Map> getUnClosedIncidentTagsByAssetName(String assetName, String duration) {
+        List<DefectIncidentInfo> unClosedIncidentTagsByAssetName = defectIncidentInfoMapper.getUnClosedIncidentByAssetName(assetName);
+        Map<String, Map> res = new HashMap<>();
+        long durationTime = 60 * 60 * 1000;
+        if (duration != null && !duration.isEmpty()) {
+            durationTime = duration.equals("1h") ? 60 * 60 * 1000 : duration.equals("1d") ? 24 * 60 * 60 * 1000 : duration.equals("8h") ? 8 * 60 * 60 * 1000 : 60 * 60 * 1000;
+        }
+        for (DefectIncidentInfo defectIncidentInfo : unClosedIncidentTagsByAssetName) {
+            Map<String, Object> tempRes = new HashMap<>();
+            Long subsystemId = defectIncidentInfo.getSubsystemId();
+            String tagCode = defectIncidentInfo.getTagCode();
+            Date endTime = defectIncidentInfo.getLastTime();
+            Date beginTime = new Date(endTime.getTime() - durationTime);
+            InfluxQueryResult influxQueryResult = influxDBServiceJR.queryValuesV2(tagCode, "RealTimeData_" + subsystemId, beginTime, endTime, "1m", true, true);
+            tempRes.put("时序", influxQueryResult);
+            Long tagId = defectIncidentInfo.getNodeId();
+            InstanceQueryParam instanceQueryParam = new InstanceQueryParam();
+            instanceQueryParam.setNodeId(tagId);
+            Map map = damCoreClient.querySelectIgnoreDistanceByCondition(instanceQueryParam);
+            for (Object o : (List) map.get("data")) {
+                Map o1 = (Map) o;
+                Map map1 = (Map) o1.get("properties");
+                Map<String, Object> map2 = new HashMap<>();
+                map2.put("高报", map1.get("高报") == null ? "" : map1.get("高报"));
+                map2.put("高高报", map1.get("高高报") == null ? "" : map1.get("高高报"));
+                map2.put("低报", map1.get("低报") == null ? "" : map1.get("低报"));
+                map2.put("低低报", map1.get("低低报") == null ? "" : map1.get("低低报"));
+                map2.put("高报严重度", map1.get("高报严重度") == null ? "" : map1.get("高报严重度"));
+                map2.put("高高报严重度", map1.get("高高报严重度") == null ? "" : map1.get("高高报严重度"));
+                map2.put("低报严重度", map1.get("低报严重度") == null ? "" : map1.get("低报严重度"));
+                map2.put("低低报严重度", map1.get("低低报严重度") == null ? "" : map1.get("低低报严重度"));
+                map2.put("源标签点描述", map1.get("源标签点描述") == null ? "" : map1.get("源标签点描述"));
+                tempRes.put("测点属性", map2);
+            }
+            res.put(defectIncidentInfo.getTagCode(), tempRes);
+        }
+        return res;
+    }
+
+    // 内部辅助类，用于在 Stream 中暂存设备名和它的相似度分数
+    private static class ScoredDevice {
+        final String device;
+        final double score;
+
+        ScoredDevice(String device, double score) {
+            this.device = device;
+            this.score = score;
+        }
     }
 }
