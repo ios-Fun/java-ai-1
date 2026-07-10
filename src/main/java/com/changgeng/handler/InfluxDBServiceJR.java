@@ -648,7 +648,7 @@ public class InfluxDBServiceJR {
     }
 
 
-    public List<Map> queryValues3(String tagName, Integer subsystemId, String startTime, String endTime, String type) {
+    public List<Map> queryValues3(String tagName, Integer subsystemId, String startTime, String endTime, String type, Integer interval) {
         if (type.isEmpty()) return new ArrayList<>();
 
         List<Map> resultList = new ArrayList<>();
@@ -656,13 +656,19 @@ public class InfluxDBServiceJR {
             String sql;
             if ("TagSeverity".equals(type)) {
                 sql = String.format(
-                    "select TagName as tagName, Severity as value, Valid as valid, time from %s_%d where TagName = '%s' and time >= '%s' and time <= '%s' order by time",
-                    type, subsystemId, tagName, startTime, endTime
+                        "SELECT first(Severity) as value, TagName as tagName, Valid as valid " +
+                                "FROM %s_%d " +
+                                "WHERE TagName = '%s' AND time >= '%s' AND time <= '%s' " +
+                                "GROUP BY time(%ss),tagName,value,valid",
+                        type, subsystemId, tagName, startTime, endTime, interval
                 );
             } else {
                 sql = String.format(
-                    "select TagName as tagName, Value as value, Valid as valid, time from %s_%d where TagName = '%s' and time >= '%s' and time <= '%s' order by time",
-                    type, subsystemId, tagName, startTime, endTime
+                        "SELECT first(Value) as value, TagName as tagName, Valid as valid " +
+                                "FROM %s_%d " +
+                                "WHERE TagName = '%s' AND time >= '%s' AND time <= '%s' " +
+                                "GROUP BY time(%ss),tagName,value,valid",
+                        type, subsystemId, tagName, startTime, endTime, interval
                 );
             }
 
@@ -683,8 +689,8 @@ public class InfluxDBServiceJR {
 
                             if (row.size() >= 4) {
                                 String time = (String) row.get(0);
-                                String tag = (String) row.get(1);
-                                Double value = row.get(2) != null ? ((Number) row.get(2)).doubleValue() : null;
+                                String tag = (String) row.get(2);
+                                Double value = row.get(1) != null ? ((Number) row.get(1)).doubleValue() : null;
                                 Boolean valid = row.get(3) != null ? (Boolean) row.get(3) : false;
                                 dataMap.put("time", time);
                                 dataMap.put("tagName", tag);

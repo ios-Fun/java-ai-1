@@ -100,10 +100,11 @@ public class TagController {
             @RequestParam(required = false) String srcTagName,
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime,
-            @RequestParam(required = true) String type
+            @RequestParam(required = true) String type,
+            @RequestParam(required = false) Integer interval
     ) {
-        log.info("查询测点历史数据 - tagId: {}, tagName: {}, srcTagName: {}, startTime: {}, endTime: {}, type: {}",
-                tagId, tagName, srcTagName, startTime, endTime,  type);
+        log.info("查询测点历史数据 - tagId: {}, tagName: {}, srcTagName: {}, startTime: {}, endTime: {}, type: {}, interval: {}",
+                tagId, tagName, srcTagName, startTime, endTime, type, interval);
         if (tagId == null && tagName == null && srcTagName == null) {
             return Result.error(400, "至少输入1个参数");
         }
@@ -126,9 +127,9 @@ public class TagController {
         }
         Map result = new HashMap();
         if(type.equals("all")) {
-            List<Map> actualValues = influxDBServiceJR.queryValues3(tagName, subsystemId, startTime, endTime, "RealTimeData");
-            List<Map> estimatedValues = influxDBServiceJR.queryValues3(tagName, subsystemId, startTime, endTime, "Estimate");
-            List<Map> severityValues = influxDBServiceJR.queryValues3(tagName, subsystemId, startTime, endTime, "TagSeverity");
+            List<Map> actualValues = influxDBServiceJR.queryValues3(tagName, subsystemId, startTime, endTime, "RealTimeData",interval);
+            List<Map> estimatedValues = influxDBServiceJR.queryValues3(tagName, subsystemId, startTime, endTime, "Estimate",interval);
+            List<Map> severityValues = influxDBServiceJR.queryValues3(tagName, subsystemId, startTime, endTime, "TagSeverity",interval);
             List<String> timeList = actualValues.stream().map(item -> (String)item.get("time")).collect(Collectors.toList());
             List<Double> realTimeDataList = actualValues.stream().map(item -> (Double)item.get("value")).collect(Collectors.toList());
             List<Double> estimateList = estimatedValues.stream().map(item -> (Double)item.get("value")).collect(Collectors.toList());
@@ -139,7 +140,7 @@ public class TagController {
             result.put("Estimate", estimateList);
             result.put("TagSeverity", tagSeverityList);
         }else {
-            List<Map> values = influxDBServiceJR.queryValues3(tagName, subsystemId, startTime, endTime, type);
+            List<Map> values = influxDBServiceJR.queryValues3(tagName, subsystemId, startTime, endTime, type,interval);
             List<String> timeList = values.stream().map(item -> (String)item.get("time")).collect(Collectors.toList());
             List<Double> valuesList = values.stream().map(item -> (Double)item.get("value")).collect(Collectors.toList());
 
