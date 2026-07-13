@@ -1,9 +1,7 @@
 package com.changgeng.tool;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class CommonTool {
     public static boolean isInteger(String str) {
@@ -78,6 +76,21 @@ public class CommonTool {
         return (charSimilarity + wordSimilarity + oldSimilarity) / 3.0;
     }
 
+    /**
+     * 优化后的混合相似度算法
+     * @param entityStr 数据库中的实例/设备/测点名称 (短)
+     * @param targetStr 用户输入的查询语句 (长)
+     */
+    public static double mixedSimilarity2(String entityStr, String targetStr) {
+        if (entityStr == null || targetStr == null || entityStr.isEmpty() || targetStr.isEmpty()) {
+            return 0.0;
+        }
+        if (targetStr.contains(entityStr)) {
+            return 0.8 + 0.2 * ((double) entityStr.length() / targetStr.length());
+        }
+        return jaccardSimilarityChar(entityStr, targetStr);
+    }
+
     // 获取最佳匹配字符串
     public static String getBestMatchingStr(List<String> strList, String targetStr) {
         double maxSimilarity = -1.0;
@@ -90,5 +103,32 @@ public class CommonTool {
             }
         }
         return bestMatchingStr;
+    }
+
+    // 获取前num个最佳匹配字符串
+    public static List<Map> getBestMatchingStr(List<Map> mapList, String targetStr, int num) {
+        if (mapList == null || mapList.isEmpty() || num <= 0) {
+            return Collections.emptyList();
+        }
+        int limit = Math.min(num, mapList.size());
+
+        return mapList.stream()
+                .map(map -> {
+                    String compareValue = map.get("name").toString();
+                    double similarity = mixedSimilarity2(compareValue, targetStr);
+                    Map result = new HashMap<>();
+                    result.put("id", map.get("id"));
+                    result.put("name",map.get("name"));
+                    result.put("code",map.get("code"));
+                    result.put("type",map.get("type"));
+                    result.put("similarity", similarity);
+                    return result;
+                })
+                .sorted((m1, m2) -> Double.compare(
+                        (Double) m2.get("similarity"),
+                        (Double) m1.get("similarity")
+                ))
+                .limit(limit)
+                .collect(Collectors.toList());
     }
 }

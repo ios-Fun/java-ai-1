@@ -29,4 +29,7 @@ public interface DamExtClient {
 
     @PostMapping("/graph/getSubSystemIdByTTS")
     Integer getSubSystemIdByTTS(@RequestParam Integer tagId, @RequestParam String tagName, @RequestParam String srcTagName);
+
+    @PostMapping("/graph/getInstanceList")
+    List<Map> getInstanceList();
 }
