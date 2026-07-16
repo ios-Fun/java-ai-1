@@ -56,9 +56,9 @@ dam-ext:
   url: http://192.168.0.158:8018
 
 fastgpt:
-  url: http://192.168.0.58:3000
-  token: fastgpt-p41BbJMwFlvPDDnQVHeJOCV7fDMrwMCxV6tIJys6ZovLS9Kb3RZkT1uQT
-  datasetId: 6a30a7aa32d33e37e8a0a272
+  url: http://192.168.0.106:3000
+  token: fastgpt-iVoJE47cS610aFSbYeznHSUQ2EzENiIt05LkQYM11iamlU31ScpqQpHEjEeMdGPv
+  datasetId: 6a5619306e5bc74dd44b3b3d
   embeddingWeight: 0.5
   limit: 3000
   similarity: 0
