@@ -12,5 +12,5 @@ public class SystemIncidentRequest {
     private Date startTime;
     private Date endTime;
     private String currentStatus;
-    private Boolean closed=false;
+    private Boolean closed;
 }
