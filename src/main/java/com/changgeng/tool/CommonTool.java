@@ -107,20 +107,19 @@ public class CommonTool {
 
     // 获取前num个最佳匹配字符串
     public static List<Map> getBestMatchingStr(List<Map> mapList, String targetStr, int num) {
-        if (mapList == null || mapList.isEmpty() || num <= 0) {
+        if (mapList == null || mapList.isEmpty()) {
             return Collections.emptyList();
         }
-        int limit = Math.min(num, mapList.size());
 
-        return mapList.stream()
+        List<Map> scored = mapList.stream()
                 .map(map -> {
                     String compareValue = map.get("name").toString();
                     double similarity = mixedSimilarity2(compareValue, targetStr);
                     Map result = new HashMap<>();
                     result.put("id", map.get("id"));
-                    result.put("name",map.get("name"));
-                    result.put("code",map.get("code"));
-                    result.put("type",map.get("type"));
+                    result.put("name", map.get("name"));
+                    result.put("code", map.get("code"));
+                    result.put("type", map.get("type"));
                     result.put("similarity", similarity);
                     return result;
                 })
@@ -128,7 +127,17 @@ public class CommonTool {
                         (Double) m2.get("similarity"),
                         (Double) m1.get("similarity")
                 ))
-                .limit(limit)
                 .collect(Collectors.toList());
+
+        if (num < 0) {
+            return Collections.emptyList();
+        }
+        if (num == 0) {
+            double maxSimilarity = (Double) scored.get(0).get("similarity");
+            return scored.stream()
+                    .filter(m -> Double.compare((Double) m.get("similarity"), maxSimilarity) == 0)
+                    .collect(Collectors.toList());
+        }
+        return scored.subList(0, Math.min(num, scored.size()));
     }
 }
