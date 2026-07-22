@@ -372,9 +372,9 @@ public class DeviceHealthyController {
                                 pointsSB.append(",");
                             }
                         }
-                        pointsSB.append("]");
                         pointsSB.append("\n");
                     }
+                    pointsSB.append("]");
                 } else if (type.equals("设备") || type.equals("子系统") || type.equals("部件")) {
                     log.info("tag: {}, {}", type, defectIncidentInfo.getName());
                     deviceNameStr = defectIncidentInfo.getName();
