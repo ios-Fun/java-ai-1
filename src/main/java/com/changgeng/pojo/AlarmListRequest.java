@@ -16,6 +16,6 @@ public class AlarmListRequest {
     private Integer tagId;
     private Integer monitorPointId;
     private Integer unitId;
-    private Boolean closed;
+    private Boolean closed=false;
     private Boolean AI=true;
 }
