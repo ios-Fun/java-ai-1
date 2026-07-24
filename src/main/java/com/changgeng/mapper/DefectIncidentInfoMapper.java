@@ -19,6 +19,9 @@ public interface DefectIncidentInfoMapper {
     // 根据诊断单获取所有故障模式信息
     List<DefectIncidentInfo> selectFaultModeListById(Integer incidentId);
 
+    // 获取
+    List<DefectIncidentInfo> selectDefectIncidentInfoByIncidentId(Integer incidentId);
+
     // 根据诊断单获取（故障模式，特征，测点）信息
     List<DefectIncidentInfo> selectDefectIncidentListById(Integer defectId);
 

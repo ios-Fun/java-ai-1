@@ -13,10 +13,7 @@ import com.changgeng.mapper.AlarmTableMapper;
 import com.changgeng.mapper.DefectIncidentInfoMapper;
 import com.changgeng.mapper.DefectIncidentMapper;
 import com.changgeng.model.DefectIncidentInfo;
-import com.changgeng.pojo.AlarmListRequest;
-import com.changgeng.pojo.SystemIncidentRequest;
-import com.changgeng.pojo.UnitHealthyRequest;
-import com.changgeng.pojo.UnitIncidentDTO;
+import com.changgeng.pojo.*;
 import com.changgeng.service.DeviceHealthyService;
 import com.changgeng.service.UnitService;
 import com.changgeng.tool.DateTool;
@@ -90,18 +87,22 @@ public class UnitController {
         Boolean ragIN = false;
 
         String unitName = request.getUnitName();
-        Object uil = getUnitIncidentMap(request).getData();
-        List<UnitIncidentDTO> unitIncidentList = uil instanceof String ? new ArrayList<>() : (List<UnitIncidentDTO>) uil ;
+        List<Map> allUnits = unitService.matchUnits(unitName);
+        Date[] dates = DateTool.getStartAndEndTime(request);
+        Boolean closed = request.getClosed();
+
+        List<Map<String, Object>> unitIncidentList = unitService.getUnitIncidentList(allUnits, dates, closed);
         if (unitIncidentList.isEmpty()) return "未查到机组信息，或该机组下无诊断单。";
 
         StringBuilder stringBuilder = new StringBuilder();
         String ragText = "";
         // 按机组分组处理
-        for (UnitIncidentDTO unitDTO : unitIncidentList) {
-            Integer unitId = unitDTO.getUnitId();
-            List<DefectIncidentInfo> incidentList = unitDTO.getIncidents();
-            log.info("unitId: {}, unitName: {}, 诊断单数量: {}", unitId, unitDTO.getUnitName(), incidentList.size());
-            stringBuilder.append("=== 机组 ").append(unitDTO.getUnitName()).append("(").append(unitId).append(") ===\n");
+        for (Map<String, Object> unitMap : unitIncidentList) {
+            Integer unitId = (Integer) unitMap.get("unitId");
+            String unitNameStr = (String) unitMap.get("unitName");
+            List<DefectIncidentInfo> incidentList = (List<DefectIncidentInfo>) unitMap.get("incidents");
+            log.info("unitId: {}, unitName: {}, 诊断单数量: {}", unitId, unitNameStr, incidentList.size());
+            stringBuilder.append("=== 机组 ").append(unitNameStr).append("(").append(unitId).append(") ===\n");
             List<String> assetNames = new ArrayList<>();
 
             for (DefectIncidentInfo incident : incidentList) {
@@ -229,21 +230,10 @@ public class UnitController {
         List<Map> allUnits = unitService.matchUnits(unitName);
         Date[] dates = DateTool.getStartAndEndTime(request);
         Boolean closed = request.getClosed();
-        List<UnitIncidentDTO> result = allUnits.stream()
-                .filter(map -> (Boolean) map.get("matched") != false)
-                .map(map -> {
-                    Integer unitId = (Integer) map.get("unitId");
-                    List<DefectIncidentInfo> unitList = defectIncidentInfoMapper.selectDefectIncidentIdListByUnit(unitId, dates[0], dates[1], closed);
-                    UnitIncidentDTO unitIncidentDTO = new UnitIncidentDTO();
-                    if (unitList.size() > 0) {
-                        unitIncidentDTO.setUnitId(unitId);
-                        unitIncidentDTO.setUnitName((String) map.get("unitName"));
-                        unitIncidentDTO.setIncidents(unitList);
-                    }
-                    return unitIncidentDTO;
-                }).collect(Collectors.toList());
+
+        List<Map<String, Object>> result = unitService.getBriefIncidentMap(allUnits, dates, closed);
         return result.isEmpty()
-                ? Result.success("未查到相关机组信息，当前数据中存在机组："+allUnits)
+                ? Result.success("未查到相关机组信息，当前数据中存在机组：" + allUnits)
                 : Result.success(result);
     }
 
@@ -312,4 +302,17 @@ public class UnitController {
         return Result.success(unitService.getSubSystemIncidentList(request));
     }
 
+    /**
+     * 获取机组下诊断单关联节点的层级路径树
+     * 根据机组ID和诊断单ID列表，查询各诊断单对应节点的完整层级路径（从机组到节点），
+     * 过滤掉"特征"、"测点"、"故障模式"类型的节点后，将所有路径合并构建为树形结构返回。
+     * @param request 请求参数，包含：
+     *                - unitId: 机组ID（必填）
+     *                - incidentIds: 诊断单ID列表
+     * @return 树形结构，根节点为机组名称，子节点为各层级节点名称
+     */
+    @RequestMapping("/getPathUnderUnit")
+    public Result getPathUnderUnit(@RequestBody PathUnderUnitRequest request) {
+        return Result.success(unitService.getPathUnderUnit(request));
+    }
 }

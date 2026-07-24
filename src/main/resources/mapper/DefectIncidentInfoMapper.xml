@@ -74,6 +74,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         ORDER BY dii.last_time DESC
     </select>
 
+    <select id="selectDefectIncidentInfoByIncidentId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        select * from defect_incident_info where incident_id = #{incidentId} and type not in ('特征', '测点', '故障模式')
+    </select>
     <select id="selectDefectIncidentById" parameterType="java.lang.Integer" resultMap="BaseResultMap">
         select * from defect_incident_info where incident_id = #{defectId} and type = '故障模式'
     </select>

@@ -32,4 +32,7 @@ public interface DamExtClient {
 
     @PostMapping("/graph/getInstanceList")
     List<Map> getInstanceList();
+
+    @PostMapping("/graph/getPathByNodeId")
+    List<String> getPathByNodeId(@RequestParam Long nodeId);
 }
