@@ -150,4 +150,34 @@ public class TagController {
                 
         return Result.success(result);
     }
+
+    /**
+     * 测点统计数据查询接口
+     * 统计指定时间段内测点的实际值、估计值、严重度的最小值/最大值/平均值以及超限个数，
+     * 数据按1分钟间隔采样。三个测点参数都不传时统计所有测点。
+     * 请求参数说明:
+     * @param tagId      测点ID(可选)
+     * @param tagName     测点编码(可选)
+     * @param srcTagName 源标签点名(可选)
+     * @param startTime  开始时间(可选),不传默认取结束时间往前半小时
+     * @param endTime    结束时间(必填)
+     * @return cols 为列名列表, data 为每个测点一行的统计数据
+     */
+    @RequestMapping("/tagStatisticData")
+    public Result getTagStatisticData(
+            @RequestParam(required = false) Integer tagId,
+            @RequestParam(required = false) String tagName,
+            @RequestParam(required = false) String srcTagName,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = true) String endTime,
+            @RequestParam(required = false) String parentName
+    ) {
+        log.info("查询测点统计数据 - tagId: {}, tagName: {}, srcTagName: {}, startTime: {}, endTime: {}, parentName: {}",
+                tagId, tagName, srcTagName, startTime, endTime, parentName);
+        if (endTime == null || endTime.isEmpty()) {
+            return Result.error(400, "时间传递错误");
+        }
+        Map<String, Object> result = tagService.tagStatisticData(tagId, tagName, srcTagName, startTime, endTime, parentName);
+        return result.isEmpty() ? Result.success("统计数据失败") : Result.success(result);
+    }
 }

@@ -691,7 +691,7 @@ public class InfluxDBServiceJR {
                                 String time = (String) row.get(0);
                                 String tag = (String) row.get(2);
                                 Double value = row.get(1) != null ? ((Number) row.get(1)).doubleValue() : null;
-                                Boolean valid = row.get(3) != null ? (Boolean) row.get(3) : false;
+                                Boolean valid = row.get(3) != null ? (Boolean) row.get(3) : null;
                                 dataMap.put("time", time);
                                 dataMap.put("tagName", tag);
                                 dataMap.put("value", value);
