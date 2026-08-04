@@ -180,4 +180,14 @@ public class TagController {
         Map<String, Object> result = tagService.tagStatisticData(tagId, tagName, srcTagName, startTime, endTime, parentName);
         return result.isEmpty() ? Result.success("统计数据失败") : Result.success(result);
     }
+
+    @RequestMapping("/getAllTags")
+    public Result getAllTags(
+            @RequestParam(required = true) String type,
+            @RequestParam(required = false) String parentName
+    ) {
+        log.info("查询所有标签 - type: {}, parentName: {}", type, parentName);
+        List<Map> result = tagService.getAllTags(type, parentName);
+        return result.isEmpty() ? Result.success("查询失败") : Result.success(result);
+    }
 }

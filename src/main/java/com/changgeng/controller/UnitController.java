@@ -232,9 +232,9 @@ public class UnitController {
         Boolean closed = request.getClosed();
 
         List<Map<String, Object>> result = unitService.getBriefIncidentMap(allUnits, dates, closed);
-        return result.isEmpty()
+        return allUnits.stream().filter(o -> (Boolean) o.get("matched") != false).collect(Collectors.toList()).isEmpty()
                 ? Result.success("未查到相关机组信息，当前数据中存在机组：" + allUnits)
-                : Result.success(result);
+                :(result.isEmpty() ? Result.success("该机组未查到相关诊断单信息") : Result.success(result));
     }
 
     /**

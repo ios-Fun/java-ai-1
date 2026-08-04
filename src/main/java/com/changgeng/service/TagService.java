@@ -230,6 +230,10 @@ public class TagService {
         return map;
     }
 
+    public List<Map> getAllTags(String type, String parentName) {
+        return damExtClient.getAllTags(type, parentName);
+    }
+
 
     /** 时序统计中间结果 */
     private static class Stat {
