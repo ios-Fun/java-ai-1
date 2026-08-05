@@ -92,6 +92,58 @@ public class DeviceHealthyService {
         return resultSB.toString();
     }
 
+    public String deviceRagV2(@RequestParam String instanceName) {
+        log.info("instanceName: {}", instanceName);
+        Map<String, Object> tag_map = new HashMap<>();
+        tag_map.put("datasetId", ragConfig.getDatasetId());
+        tag_map.put("text", instanceName);
+        tag_map.put("searchMode", "embedding");
+        tag_map.put("embeddingWeight", ragConfig.getEmbeddingWeight());
+        tag_map.put("usingReRank", false);
+        tag_map.put("limit", ragConfig.getLimit());
+        tag_map.put("similarity", ragConfig.getSimilarity());
+        tag_map.put("datasetSearchUsingExtensionQuery", false);
+        tag_map.put("datasetSearchExtensionModel", ragConfig.getDatasetSearchExtensionModel());
+        tag_map.put("datasetSearchExtensionBg", "");
+        Map rootMap = fastgptClient.searchTest(tag_map);
+        // 过滤下内容
+        StringBuilder resultSB = new StringBuilder();
+        Map<String, Object> dataMap = (Map<String, Object>) rootMap.get("data");
+        List<Map<String, Object>> list = (List<Map<String, Object>>) dataMap.get("list");
+
+
+        if (list != null && !list.isEmpty()) {
+            resultSB.append("## 可以使用<Cites> </Cites> 中的内容作为本次回答的参考\n");
+            resultSB.append("<Cites>\n");
+
+            for (int i = 0; i < list.size(); i++) {
+                resultSB.append("{\n    ");
+
+                // 1. 拼接 content 字段
+                resultSB.append("\"content\": \"");
+                resultSB.append(list.get(i).get("q"));
+                resultSB.append("\",\n    ");
+
+                // 2. 拼接新增的 sourceName 字段
+                resultSB.append("\"sourceName\": \"");
+                resultSB.append(list.get(i).get("sourceName"));
+                resultSB.append("\"\n");
+
+                resultSB.append("}");
+
+                if (i != list.size() - 1) {
+                    resultSB.append("\n------\n");
+                } else {
+                    resultSB.append("\n");
+                }
+            }
+
+            resultSB.append("</Cites>");
+        }
+
+        return resultSB.toString();
+    }
+
     public String[] deviceGraphShow(@RequestParam Integer nodeId) {
         String[] returnStrs = new String[2];
         IdObj debutObj = new IdObj();

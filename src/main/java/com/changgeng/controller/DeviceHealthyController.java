@@ -192,6 +192,35 @@ public class DeviceHealthyController {
     }
 
     /**
+     * rag查找(V3)
+     * @param cached_defectIds 诊断单list
+     * @return
+     */
+    @RequestMapping("/device/rag/v3")
+    public String deviceRagV3(@RequestBody List<Object> cached_defectIds) {
+        StringBuilder tagsNamesString = new StringBuilder();
+        for (int j = 0; j < cached_defectIds.size(); j++) {
+            Object item = cached_defectIds.get(j);
+            Integer incidentId = null;
+            if (item instanceof Map) {
+                Map<String, Object> dataMap = (Map<String, Object>) item;
+                incidentId = (Integer) dataMap.get("incidentId");
+            }else if (item instanceof Integer){
+                incidentId = (Integer) item;
+            }else if (item instanceof String){
+                incidentId = Integer.valueOf(String.valueOf(item));
+            }
+            // 获取故障模式--有可能故障模式不一样
+            List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(incidentId);
+            List<String> collect = defectModeIncidentInfoList.stream().filter(one -> one.getType().equals("故障模式")).map(DefectIncidentInfo::getName).collect(Collectors.toList());
+            for (String items: collect) {
+                tagsNamesString.append(items).append(",");
+            }
+        }
+        return deviceHealthyService.deviceRagV2(tagsNamesString.toString());
+    }
+
+    /**
      * 未关闭报警单内设备下测点时间戳，实际值，估计值，严重度
      * 统计时间为最后触发时间前8小时，默认数据间隔1分钟
      * 请求参数说明：
