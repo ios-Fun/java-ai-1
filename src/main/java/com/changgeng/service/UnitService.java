@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -96,10 +97,12 @@ public class UnitService {
         return getUnitIncidentList(matchedUnits, dates, closed).stream().map(unitMap -> {
             @SuppressWarnings("unchecked")
             List<DefectIncidentInfo> incidents = (List<DefectIncidentInfo>) unitMap.get("incidents");
-            long closedCount = incidents.stream().filter(i -> Integer.valueOf(1).equals(i.getClosed())).count();
-            long unclosedCount = incidents.size() - closedCount;
+            Date now = new Date();
+            long stillTriggerCount = incidents.stream().filter(i -> now.getTime() - i.getLastTime().getTime() <= 10 * 60 * 1000L ).count();
+            long noTriggerCountCount = incidents.size() - stillTriggerCount;
 
             List<Map<String, Object>> briefIncidents = incidents.stream().map(i -> {
+                Boolean isStillTrigger = now.getTime() - i.getLastTime().getTime() <= 10 * 60 * 1000L;
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("dataId", i.getDataId());
                 m.put("name", i.getName());
@@ -112,17 +115,48 @@ public class UnitService {
                 m.put("level", i.getLevel());
                 m.put("incidentId", i.getIncidentId());
                 m.put("maxTime", i.getMaxTime());
-                m.put("closed", i.getClosed());
+                m.put("isStillTrigger", isStillTrigger);
+                m.put("maxDefectSeverityName", i.getMaxDefectSeverityName());
+//                m.put("closed", i.getClosed());
                 return m;
             })
             .sorted(Comparator.comparingInt(m -> levelRank((String) m.get("level"))))
             .collect(Collectors.toList());
 
+            List<Map> assets = getItems((Integer) unitMap.get("unitId"), "设备");
+            Double unitHealthy = 100.0;
+            AtomicInteger assetIndicidentCount = new AtomicInteger();
+            if (!assets.isEmpty() && !incidents.isEmpty()){
+                double totalDeduction = incidents.stream()
+                        .filter(o -> "设备".equals(o.getType()))
+                        .mapToDouble(o -> {
+                            assetIndicidentCount.addAndGet(1);
+                            switch (o.getLevel()) {
+                                case "严重":
+                                    return 10;
+                                case "较严重":
+                                    return 7;
+                                case "中度":
+                                    return 4;
+                                case "轻微":
+                                    return 2;
+                                case "征兆":
+                                    return 1;
+                                default:
+                                    return 0;
+                            }
+                        })
+                        .sum();
+                log.info("totalDeduction:{}, assetCount:{}", totalDeduction, assetIndicidentCount.get());
+                unitHealthy = 100.0 - totalDeduction * 0.4 - assetIndicidentCount.get() * 0.3;
+            }
+
             Map<String, Object> briefUnitMap = new LinkedHashMap<>();
             briefUnitMap.put("unitId", unitMap.get("unitId"));
             briefUnitMap.put("unitName", unitMap.get("unitName"));
-            briefUnitMap.put("closedCount", closedCount);
-            briefUnitMap.put("unclosedCount", unclosedCount);
+            briefUnitMap.put("unitHealthy", unitHealthy);
+            briefUnitMap.put("stillTriggerCount", stillTriggerCount);
+            briefUnitMap.put("noTriggerCountCount", noTriggerCountCount);
             briefUnitMap.put("incidents", briefIncidents);
             return briefUnitMap;
         }).collect(Collectors.toList());

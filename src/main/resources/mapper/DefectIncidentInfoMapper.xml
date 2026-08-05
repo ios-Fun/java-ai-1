@@ -23,6 +23,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result column="is_red" jdbcType="VARCHAR" property="isRed" />
         <result column="alarm_type" jdbcType="VARCHAR" property="alarmType" />
         <result column="closed" jdbcType="BIT" property="closed" />
+        <result column="maxdefectseverityname" jdbcType="VARCHAR" property="maxDefectSeverityName" />
     </resultMap>
 
     <select id="selectOpenedIncidentAssetName" resultMap="BaseResultMap">
@@ -61,7 +62,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectDefectIncidentIdListByUnit" resultMap="BaseResultMap">
-        SELECT dii.*,di.closed
+        SELECT dii.*,di.closed,di.maxdefectseverityname
         FROM defect_incident_info dii
         JOIN defectincident di ON di.defectincidentid = dii.incident_id
         WHERE dii.type NOT IN ('特征', '测点', '故障模式')
