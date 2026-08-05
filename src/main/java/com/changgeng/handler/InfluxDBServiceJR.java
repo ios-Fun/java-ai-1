@@ -647,6 +647,129 @@ public class InfluxDBServiceJR {
         return allValuesMap;
     }
 
+    // 查询某时刻的某个值
+    public String queryValueAtTime (String tagName, Integer subsystemId, String type, String time) {
+        String result = "";
+        try {
+            String sql;
+            if ("TagSeverity".equals(type)) {
+                sql = String.format(
+                        "SELECT Severity as value, TagName as tagName, Valid as valid " +
+                                "FROM %s_%d " +
+                                "WHERE TagName = '%s' and time = '%s'",
+                        type, subsystemId, tagName, time
+                );
+            }else {
+                sql = String.format(
+                        "SELECT Value as value, TagName as tagName, Valid as valid " +
+                                "FROM %s_%d " +
+                                "WHERE TagName = '%s' and time = '%s'",
+                        type, subsystemId, tagName, time
+                );
+            }
+            // 执行查询
+            List<QueryResult.Result> results = influxDB.query(new Query(sql)).getResults();
+
+            if (results != null && !results.isEmpty() && results.get(0).getSeries() != null) {
+                List<QueryResult.Series> seriesList = results.get(0).getSeries();
+
+                if (seriesList != null && !seriesList.isEmpty()) {
+                    QueryResult.Series series = seriesList.get(0);
+                    List<List<Object>> values = series.getValues();
+
+                    if (values != null && !values.isEmpty()) {
+                        log.info("查询成功,返回 " + values.size() + " 条数据");
+                        for (List<Object> row : values) {
+                            Map<String, Object> dataMap = new HashMap<>();
+
+                            if (row.size() >= 4) {
+                                String returnTime = (String) row.get(0);
+                                String tag = (String) row.get(2);
+                                Double value = row.get(1) != null ? ((Number) row.get(1)).doubleValue() : null;
+                                Boolean valid = row.get(3) != null ? (Boolean) row.get(3) : false;
+                                dataMap.put("time", returnTime);
+                                dataMap.put("tagName", tag);
+                                dataMap.put("value", value);
+                                dataMap.put("valid", valid);
+                                result = String.format("时间：%s, %s值: %f", returnTime, type, value);
+                            }
+                        }
+                    } else {
+                        log.warning("查询结果为空,该时间段内无数据");
+                    }
+                }
+            } else {
+                log.warning("查询结果为空或格式不正确");
+            }
+        } catch (Exception e) {
+            log.warning("查询测点数据失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    // 查询最近时刻的一个值
+    public String queryLatest(String tagName, Integer subsystemId, String type) {
+        String result = "";
+        try {
+            String sql;
+            if ("TagSeverity".equals(type)) {
+                sql = String.format(
+                        "SELECT Severity as value, TagName as tagName, Valid as valid " +
+                                "FROM %s_%d " +
+                                "WHERE TagName = '%s' order by time desc limit 1",
+                        type, subsystemId, tagName
+                );
+            }else {
+                sql = String.format(
+                        "SELECT Value as value, TagName as tagName, Valid as valid " +
+                                "FROM %s_%d " +
+                                "WHERE TagName = '%s' order by time desc limit 1",
+                        type, subsystemId, tagName
+                );
+            }
+            // 执行查询
+            List<QueryResult.Result> results = influxDB.query(new Query(sql)).getResults();
+
+            if (results != null && !results.isEmpty() && results.get(0).getSeries() != null) {
+                List<QueryResult.Series> seriesList = results.get(0).getSeries();
+
+                if (seriesList != null && !seriesList.isEmpty()) {
+                    QueryResult.Series series = seriesList.get(0);
+                    List<List<Object>> values = series.getValues();
+
+                    if (values != null && !values.isEmpty()) {
+                        log.info("查询成功,返回 " + values.size() + " 条数据");
+                        for (List<Object> row : values) {
+                            Map<String, Object> dataMap = new HashMap<>();
+
+                            if (row.size() >= 4) {
+                                String returnTime = (String) row.get(0);
+                                String tag = (String) row.get(2);
+                                Double value = row.get(1) != null ? ((Number) row.get(1)).doubleValue() : null;
+                                Boolean valid = row.get(3) != null ? (Boolean) row.get(3) : false;
+                                dataMap.put("time", returnTime);
+                                dataMap.put("tagName", tag);
+                                dataMap.put("value", value);
+                                dataMap.put("valid", valid);
+                                result = String.format("时间：%s, %s值: %f", returnTime, type, value);
+                            }
+                        }
+                    } else {
+                        log.warning("查询结果为空,该时间段内无数据");
+                        result = "该时刻值为空";
+                    }
+                }
+            } else {
+                log.warning("查询结果为空或格式不正确");
+                result = "该时刻值为空";
+            }
+        } catch (Exception e) {
+            log.warning("查询测点数据失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return result;
+    }
 
     public List<Map> queryValues3(String tagName, Integer subsystemId, String startTime, String endTime, String type, Integer interval) {
         if (type.isEmpty()) return new ArrayList<>();
