@@ -190,4 +190,82 @@ public class TagController {
         List<Map> result = tagService.getAllTags(type, parentName);
         return result.isEmpty() ? Result.success("查询失败") : Result.success(result);
     }
+
+    /*
+     * 测点单时刻历史数据查询
+     * 通过测点ID、编码或源标签点名精确查找指定时间段内的测点数据,类型包括:
+     * - 实际值(RealTimeData)
+     * - 估计值(Estimate)
+     * - 严重度(TagSeverity)
+     * - 所有(All)
+     * 如果不传时间参数,默认查询最近6小时到现在的数据。
+     *
+     * 请求参数说明:
+     * @param tagId 测点ID
+     * @param tagName 测点编码
+     * @param srcTagName 源标签点名
+     * @param time 时间
+     * @param type 查询类型(可选),默认为"all"
+     * @return 测点历史数据列表,包含时间戳、实际值、估计值、严重度等信息
+     */
+    @RequestMapping("/tagValue")
+    public Result getTagValue(
+            @RequestParam(required = false) Integer tagId,
+            @RequestParam(required = false) String tagName,
+            @RequestParam(required = false) String srcTagName,
+            @RequestParam(required = false) String time,
+            @RequestParam(required = false) String type
+    ) {
+        log.info("查询测点历史数据 - tagId: {}, tagName: {}, srcTagName: {}, time: {}, type: {}",
+                tagId, tagName, srcTagName, time, type);
+        if (tagId == null && tagName == null && srcTagName == null) {
+            return Result.error(400, "至少输入1个参数");
+        }
+
+
+        Integer subsystemId = damExtClient.getSubSystemIdByTTS(tagId, tagName, srcTagName);
+        if (tagName==null || tagName.isEmpty()) {
+            List<Map> tagInfos = damExtClient.getTagInfosByTTS(tagId, tagName, srcTagName);
+            tagName = tagInfos.get(0).get("编码").toString();
+        }
+        // Map result = new HashMap();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        // 处理时间参数
+        if (time==null || time.isEmpty()) {
+            if(type.equals("all")) {
+                String actualValues = influxDBServiceJR.queryLatest(tagName, subsystemId, "RealTimeData");
+                String estimatedValues = influxDBServiceJR.queryLatest(tagName, subsystemId, "Estimate");
+                String severityValues = influxDBServiceJR.queryLatest(tagName, subsystemId, "TagSeverity");
+                stringBuilder.append(actualValues);
+                stringBuilder.append("\n");
+                stringBuilder.append(estimatedValues);
+                stringBuilder.append("\n");
+                stringBuilder.append(severityValues);
+                stringBuilder.append("\n");
+            }else {
+                String values = influxDBServiceJR.queryLatest(tagName, subsystemId, type);
+                stringBuilder.append(values);
+                stringBuilder.append("\n");
+            }
+        } else {
+            if(type.equals("all")) {
+                String actualValues = influxDBServiceJR.queryValueAtTime(tagName, subsystemId, "RealTimeData", time);
+                String estimatedValues = influxDBServiceJR.queryValueAtTime(tagName, subsystemId, "Estimate", time);
+                String severityValues = influxDBServiceJR.queryValueAtTime(tagName, subsystemId, "TagSeverity", time);
+                stringBuilder.append(actualValues);
+                stringBuilder.append("\n");
+                stringBuilder.append(estimatedValues);
+                stringBuilder.append("\n");
+                stringBuilder.append(severityValues);
+                stringBuilder.append("\n");
+            }else {
+                String values = influxDBServiceJR.queryValueAtTime(tagName, subsystemId, type, time);
+                stringBuilder.append(values);
+                stringBuilder.append("\n");
+            }
+        }
+        log.info("getTagValue result: {}", stringBuilder.toString());
+        return Result.success(stringBuilder.toString());
+    }
 }

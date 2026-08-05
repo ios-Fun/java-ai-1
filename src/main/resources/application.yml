@@ -57,7 +57,7 @@ dam-ext:
 
 fastgpt:
   url: http://192.168.0.106:3000
-  token: fastgpt-iVoJE47cS610aFSbYeznHSUQ2EzENiIt05LkQYM11iamlU31ScpqQpHEjEeMdGPv
+  token: fastgpt-lunqK8HH0LmA1IgSWo1c9ADVgkzxgEXLReVfuG5iSfsDYeigEgVhlKb1v
   datasetId: 6a5619306e5bc74dd44b3b3d
   embeddingWeight: 0.5
   limit: 3000
