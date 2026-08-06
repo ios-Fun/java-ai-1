@@ -98,10 +98,10 @@ public class DeviceHealthyService {
         tag_map.put("datasetId", ragConfig.getDatasetId());
         tag_map.put("text", instanceName);
         tag_map.put("searchMode", "embedding");
-        tag_map.put("embeddingWeight", ragConfig.getEmbeddingWeight());
+        tag_map.put("embeddingWeight", ragConfig.getEmbeddingWeightV2());
         tag_map.put("usingReRank", false);
-        tag_map.put("limit", ragConfig.getLimit());
-        tag_map.put("similarity", ragConfig.getSimilarity());
+        tag_map.put("limit", ragConfig.getLimitV2());
+        tag_map.put("similarity", ragConfig.getSimilarityV2());
         tag_map.put("datasetSearchUsingExtensionQuery", false);
         tag_map.put("datasetSearchExtensionModel", ragConfig.getDatasetSearchExtensionModel());
         tag_map.put("datasetSearchExtensionBg", "");

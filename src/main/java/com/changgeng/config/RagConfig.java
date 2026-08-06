@@ -13,11 +13,20 @@ public class RagConfig {
     @Value("${fastgpt.embeddingWeight}")
     Double embeddingWeight;
 
+    @Value("${fastgpt.embeddingWeightV2:0.6}")
+    Double embeddingWeightV2;
+
     @Value("${fastgpt.limit}")
     Integer limit;
 
+    @Value("${fastgpt.limitV2:2000}")
+    Integer limitV2;
+
     @Value("${fastgpt.similarity}")
     Double similarity;
+
+    @Value("${fastgpt.similarityV2:0.55}")
+    Double similarityV2;
 
     @Value("${fastgpt.datasetSearchExtensionModel}")
     String datasetSearchExtensionModel;
