@@ -263,6 +263,31 @@ public class UnitController {
     }
 
     /**
+     * 测点报警单统计查询接口
+     * 根据传入的多个条件参数查询 alarmtable 表中的告警信息，支持多维度筛选
+     *
+     * 请求参数说明：
+     * - tagName: 测点名称（可选），用于模糊匹配 tagname 字段
+     * - tagSourceName: 测点来源名称（可选），用于筛选特定来源的测点
+     * - startTime: 开始时间（可选），查询 firsttouchtime >= 该时间的告警记录
+     * - endTime: 结束时间（可选），查询 lasttouchtime <= 该时间的告警记录
+     * - assetNumber: 设备编号（可选），用于筛选特定设备的告警
+     * - dataType: 数据类型（可选），如 "告警"、"缺陷" 等
+     * - tagId: 测点ID（可选），精确查询某个测点的告警
+     * - monitorPointId: 监测点ID（可选），查询指定监测点的告警
+     * - unitId: 机组ID（可选），查询特定机组下的所有告警
+     * - closed: 是否已关闭（可选，默认false），true表示查询已关闭的告警，false表示查询未关闭的告警
+     * - AI: 是否为AI请求（可选，默认true）
+     *
+     * @param request 告警列表查询请求参数
+     * @return 告警信息列表，包含测点名称、告警类型、严重度等级、触发时间、处理状态等字段
+     */
+    @RequestMapping("/getAlarmListStatistics")
+    public Result getAlarmListStatistics(@RequestBody AlarmListRequest request) {
+        return Result.success(unitService.getAlarmListStatistics(request));
+    }
+
+    /**
      * 系统诊断单列表查询接口
      * 根据传入的多个条件参数查询 systemincident 表中的系统诊断单信息，支持多维度筛选
      *

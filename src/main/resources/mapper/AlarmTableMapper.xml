@@ -4,7 +4,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.changgeng.mapper.AlarmTableMapper">
     
-    <resultMap id="BaseResultMap" type="java.util.HashMap">
+    <resultMap id="BaseResultMap" type="com.changgeng.pojo.AlarmTable">
         <result column="id" jdbcType="INTEGER" property="id"/>
         <result column="tagname" jdbcType="VARCHAR" property="tagName"/>
         <result column="tag_source_name" jdbcType="VARCHAR" property="tagSourceName"/>
@@ -37,8 +37,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="request.tagSourceName != null and request.tagSourceName != ''">
                 AND tag_source_name = #{request.tagSourceName}
             </if>
-            <if test="request.endTime != null and request.endTime != null">
+            <if test="request.startTime != null and request.endTime != null">
                 AND lasttouchtime between #{request.startTime} AND #{request.endTime}
+            </if>
+            <if test="request.startTime == null and request.endTime == null">
+                AND lasttouchtime BETWEEN (now() - INTERVAL '30 minutes') AND now()
             </if>
             <if test="request.assetNumber != null">
                 AND assetnumber = #{request.assetNumber}

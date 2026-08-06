@@ -210,4 +210,54 @@ public class UnitService {
         }
         return root;
     }
+
+    public Map<String, Object> getAlarmListStatistics(AlarmListRequest request) {
+        List<AlarmTable> alarmList = alarmTableMapper.selectAlarmList(request);
+
+        Map<String, Object> alarmListRes = new LinkedHashMap<>();
+
+        Map<String, String> descriptionMap = new LinkedHashMap<>();
+        descriptionMap.put("严重度", "由测点的实际值，高报值，高高报值，低报值，低低报值联合推演出的一个数值，用于表示该测点偏离正常数值的程度。");
+        descriptionMap.put("超限（低）", "当测点的严重度，在一定时间内连续超过某个阈值达到一定数量，并且实际值低于某个设定阈值，触发超超限（低）报警。");
+        descriptionMap.put("超限（高）", "当测点的严重度，在一定时间内连续超过某个阈值达到一定数量，并且实际值高于某个设定阈值，触发超超限（高）报警。");
+        descriptionMap.put("综合", "当测点的严重度，在一定时间内连续超过某个阈值达到一定数量，并且当前严重度高于某个设定阈值，触发综合报警。");
+        descriptionMap.put("一级预警", "当测点的实时严重度大于预设的一级严重度，触发一级报警。");
+        descriptionMap.put("二级预警", "当测点的实时严重度大于预设的二级严重度，触发二级报警。");
+        descriptionMap.put("开关量异常", "当开关量测点的值处于不正确数值时，触发开关量报警。");
+        descriptionMap.put("严重度报警", "当测点的实时严重度，在一定时间内，累计触发达到一定数量，或严重度超过某个阈值时，触发严重度报警。");
+        alarmListRes.put("description", descriptionMap);
+
+        if (alarmList == null || alarmList.isEmpty()) {
+            return alarmListRes;
+        }
+
+        Map<String, List<AlarmTable>> groupedByType = alarmList.stream()
+                .filter(alarm -> alarm.getAlarmType() != null)
+                .collect(Collectors.groupingBy(AlarmTable::getAlarmType));
+
+        for (Map.Entry<String, List<AlarmTable>> entry : groupedByType.entrySet()) {
+            String alarmType = entry.getKey();
+            List<AlarmTable> alarms = entry.getValue();
+
+            Map<String, Object> typeDetail = new LinkedHashMap<>();
+            typeDetail.put("count", alarms.size());
+
+            Map<String, Map<String, String>> tagMap = new LinkedHashMap<>();
+            for (AlarmTable alarm : alarms) {
+                Map<String, String> tagInfo = new LinkedHashMap<>();
+                tagInfo.put("value", alarm.getActual());
+                if (alarm.getUnit() != null) {
+                    tagInfo.put("unit", alarm.getUnit());
+                }
+                tagInfo.put("isClosed", alarm.getClosed().toString());
+
+                tagMap.put(alarm.getTagDescription(), tagInfo);
+            }
+            typeDetail.put("tagName", tagMap);
+
+            alarmListRes.put(alarmType, typeDetail);
+        }
+
+        return alarmListRes;
+    }
 }
