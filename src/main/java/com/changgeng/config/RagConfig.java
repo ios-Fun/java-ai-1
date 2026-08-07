@@ -25,7 +25,7 @@ public class RagConfig {
     @Value("${fastgpt.similarity}")
     Double similarity;
 
-    @Value("${fastgpt.similarityV2:0.55}")
+    @Value("${fastgpt.similarityV2:0.63}")
     Double similarityV2;
 
     @Value("${fastgpt.datasetSearchExtensionModel}")

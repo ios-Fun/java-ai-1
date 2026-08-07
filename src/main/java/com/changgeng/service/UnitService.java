@@ -104,19 +104,20 @@ public class UnitService {
             List<Map<String, Object>> briefIncidents = incidents.stream().map(i -> {
                 Boolean isStillTrigger = now.getTime() - i.getLastTime().getTime() <= 10 * 60 * 1000L;
                 Map<String, Object> m = new LinkedHashMap<>();
-                m.put("dataId", i.getDataId());
+//                m.put("dataId", i.getDataId());
                 m.put("name", i.getName());
                 m.put("severity", i.getSeverity());
-                m.put("maxSeverity", i.getMaxSeverity());
-                m.put("realSeverity", i.getRealSeverity());
+//                m.put("maxSeverity", i.getMaxSeverity());
+//                m.put("realSeverity", i.getRealSeverity());
                 m.put("lastTime", i.getLastTime());
                 m.put("type", i.getType());
-                m.put("nodeId", i.getNodeId());
+//                m.put("nodeId", i.getNodeId());
                 m.put("level", i.getLevel());
                 m.put("incidentId", i.getIncidentId());
-                m.put("maxTime", i.getMaxTime());
+//                m.put("maxTime", i.getMaxTime());
                 m.put("isStillTrigger", isStillTrigger);
                 m.put("maxDefectSeverityName", i.getMaxDefectSeverityName());
+                m.put("firstOccurredDateTime", i.getFirstOccurredDateTime());
 //                m.put("closed", i.getClosed());
                 return m;
             })

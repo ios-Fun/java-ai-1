@@ -24,6 +24,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result column="alarm_type" jdbcType="VARCHAR" property="alarmType" />
         <result column="closed" jdbcType="BIT" property="closed" />
         <result column="maxdefectseverityname" jdbcType="VARCHAR" property="maxDefectSeverityName" />
+        <result column="firstoccureddatetime" jdbcType="VARCHAR" property="firstOccurredDateTime" />
     </resultMap>
 
     <select id="selectOpenedIncidentAssetName" resultMap="BaseResultMap">
@@ -62,17 +63,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectDefectIncidentIdListByUnit" resultMap="BaseResultMap">
-        SELECT dii.*,di.closed,di.maxdefectseverityname
+        SELECT DISTINCT ON (dii.incident_id)
+        dii.*,
+        di.closed,
+        di.maxdefectseverityname,
+        di.firstoccureddatetime
         FROM defect_incident_info dii
         JOIN defectincident di ON di.defectincidentid = dii.incident_id
         WHERE dii.type NOT IN ('特征', '测点', '故障模式')
         AND di.theunitinstanceid = #{unitId}
-        AND dii.last_time >= #{startDate}
-        AND dii.last_time &lt;= #{endDate}
+        AND (dii.last_time BETWEEN #{startDate} AND #{endDate}
+        OR di.firstoccureddatetime BETWEEN #{startDate} AND #{endDate})
         <if test="closed != null">
             AND di.closed = CASE WHEN #{closed} = true THEN 1::bit ELSE 0::bit END
         </if>
-        ORDER BY dii.last_time DESC
+        ORDER BY dii.incident_id, dii.last_time DESC;
     </select>
 
     <select id="selectDefectIncidentInfoByIncidentId" parameterType="java.lang.Integer" resultMap="BaseResultMap">

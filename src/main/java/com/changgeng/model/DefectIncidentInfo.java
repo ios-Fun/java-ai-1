@@ -26,5 +26,6 @@ public class DefectIncidentInfo {
     String alarmType;
     Integer closed;
     String maxDefectSeverityName;
+    Date firstOccurredDateTime;
 
 }
