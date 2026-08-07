@@ -229,16 +229,12 @@ public class UnitService {
         alarmListRes.put("description", descriptionMap);
 
         if (alarmList == null || alarmList.isEmpty()) {
-            return alarmListRes;
+            return new HashMap<>();
         }
 
         Map<String, List<AlarmTable>> groupedByType = alarmList.stream()
                 .filter(alarm -> alarm.getAlarmType() != null)
                 .collect(Collectors.groupingBy(AlarmTable::getAlarmType));
-
-        if (groupedByType.isEmpty()) {
-            return new HashMap<>();
-        }
 
         for (Map.Entry<String, List<AlarmTable>> entry : groupedByType.entrySet()) {
             String alarmType = entry.getKey();
