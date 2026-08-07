@@ -235,6 +235,10 @@ public class UnitService {
                 .filter(alarm -> alarm.getAlarmType() != null)
                 .collect(Collectors.groupingBy(AlarmTable::getAlarmType));
 
+        if (groupedByType.isEmpty()) {
+            return new HashMap<>();
+        }
+
         for (Map.Entry<String, List<AlarmTable>> entry : groupedByType.entrySet()) {
             String alarmType = entry.getKey();
             List<AlarmTable> alarms = entry.getValue();
