@@ -192,7 +192,7 @@ public class UnitService {
                 .filter(i -> !excludedTypes.contains(i.getType()))
                 .map(DefectIncidentInfo::getNodeId)
                 .collect(Collectors.toList());
-        List<List<String>> paths = result.stream()
+        List<List<String>> paths = result.parallelStream()
                 .map(damExtClient::getPathByNodeId)
                 .collect(Collectors.toList());
         return buildTree(paths);
