@@ -457,7 +457,7 @@ public class DeviceHealthyController {
                     String tagCode = defectIncidentInfo.getTagCode();
                     Map<String, Object> tagResult = tagService.tagStatisticData(null, tagCode, null, startTimeStr, endTimeStr, null);
                     if(result.isEmpty()) result = tagResult;
-                    if(!((ArrayList)tagResult.get("data")).isEmpty()) data.add(((ArrayList) tagResult.get("data")).get(0));
+                    if(tagResult!=null && tagResult.get("data")!=null) data.add(((ArrayList) tagResult.get("data")).get(0));
                 }
             }
         }
@@ -533,6 +533,7 @@ public class DeviceHealthyController {
             List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(incidentId);
             List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(incidentId);
             Map<String, Double> severityMap = defectIncidentInfoList.stream()
+                    .filter(o->o.getType().equals("设备"))
                     .collect(Collectors.toMap(DefectIncidentInfo::getName, DefectIncidentInfo::getSeverity, (a, b) -> a));
             Set<String> names = severityMap.keySet();
             for (DefectIncidentInfo defectModeIncidentInfo : defectModeIncidentInfoList) {
