@@ -15,6 +15,7 @@ import com.changgeng.pojo.IdObj;
 import com.changgeng.pojo.UnitHealthyRequest;
 import com.changgeng.pojo.UnitIncidentDTO;
 import com.changgeng.service.DeviceHealthyService;
+import com.changgeng.service.TagService;
 import com.changgeng.tool.DateTool;
 import com.changgeng.tree.MultiTreeNode;
 import com.changgeng.tree.TreeNodeService;
@@ -78,6 +79,9 @@ public class DeviceHealthyController {
 
     @Autowired
     TreeNodeService treeNodeService;
+
+    @Autowired
+    TagService tagService;
 
     String promptStr = null;
     @Autowired
@@ -416,6 +420,52 @@ public class DeviceHealthyController {
     }
 
     /**
+     * 诊断单下的测点统计信息
+     * @param list 诊断单信息
+     * @return
+     */
+    @RequestMapping("/device/tagsRealTimeV2")
+    public Map tagsRealTimeValueV2(@RequestBody List<Object> list) {
+        Map result = new HashMap<>();
+        List data = new ArrayList<>();
+        for (int j = 0; j < list.size(); j++) {
+            Object item = list.get(j);
+            Integer incidentId = null;
+            if (item instanceof Map) {
+                Map<String, Object> dataMap = (Map<String, Object>) item;
+                incidentId = (Integer) dataMap.get("incidentId");
+            } else if (item instanceof Integer) {
+                incidentId = (Integer) item;
+            } else if (item instanceof String) {
+                incidentId = Integer.valueOf(String.valueOf(item));
+            }
+            // 获取: 故障模式、特征、测点
+            List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(incidentId);
+            // 结束时间
+            Date striggerTime = defectIncidentInfoList.get(0).getLastTime();
+            // 前后半小时
+            Date startTime = new Date(striggerTime.getTime() - 30 * 60 * 1000);
+            Date endTime = new Date(striggerTime.getTime() + 30 * 60 * 1000);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.of("UTC"));
+            String startTimeStr = formatter.format(startTime.toInstant());
+            String endTimeStr = formatter.format(endTime.toInstant());
+
+            for (DefectIncidentInfo defectIncidentInfo : defectIncidentInfoList) {
+                String type = defectIncidentInfo.getType();
+                if (type.equals("测点")) {
+                    log.info("tag: {}, {}, {}", defectIncidentInfo.getTagCode(), defectIncidentInfo.getSubsystemId(), defectIncidentInfo.getName());
+                    String tagCode = defectIncidentInfo.getTagCode();
+                    Map<String, Object> tagResult = tagService.tagStatisticData(null, tagCode, null, startTimeStr, endTimeStr, null);
+                    if(result.isEmpty()) result = tagResult;
+                    if(!((ArrayList)tagResult.get("data")).isEmpty()) data.add(((ArrayList) tagResult.get("data")).get(0));
+                }
+            }
+        }
+        result.put("data",data);
+        return result;
+    }
+
+    /**
      * 显示层级关系
      * @param list 诊断单list
      * @return
@@ -454,6 +504,56 @@ public class DeviceHealthyController {
                 stringBuilder.append("\n\n");
                 // 推导图的伪代码
                 stringBuilder.append(treeNodeService.deviceGraphCode(defectModeId));
+            }
+        }
+        return stringBuilder.toString();
+    }
+
+    /**
+     * 显示主要层级关(只包含故障信息)
+     * @param list 诊断单list
+     * @return
+     */
+    @RequestMapping("/device/graph/showV2")
+    public String deviceGraphShowV2(@RequestBody List<Object> list) {
+        if(list==null | list.isEmpty()) return "传入参数列表为空";
+        StringBuilder stringBuilder = new StringBuilder();
+        Set<Long> defectModeIdSets = new HashSet<>();
+        for (int j = 0; j < list.size(); j++) {
+            Object item = list.get(j);
+            Integer incidentId = null;
+            if (item instanceof Map) {
+                Map<String, Object> dataMap = (Map<String, Object>) item;
+                incidentId = (Integer) dataMap.get("incidentId");
+            }else if (item instanceof Integer){
+                incidentId = (Integer) item;
+            }else if (item instanceof String){
+                incidentId = Integer.valueOf(String.valueOf(item));
+            }
+            List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(incidentId);
+            List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(incidentId);
+            Map<String, Double> severityMap = defectIncidentInfoList.stream()
+                    .collect(Collectors.toMap(DefectIncidentInfo::getName, DefectIncidentInfo::getSeverity, (a, b) -> a));
+            Set<String> names = severityMap.keySet();
+            for (DefectIncidentInfo defectModeIncidentInfo : defectModeIncidentInfoList) {
+                Long nodeId = defectModeIncidentInfo.getNodeId();
+                if (!defectModeIdSets.add(nodeId)) continue;
+                String content = deviceHealthyService.deviceGraphShow(Math.toIntExact(nodeId))[0];
+                String result = Arrays.stream(content.split("\n"))
+                        .filter(line -> line.contains("[故障模式]") ||
+                                names.stream().anyMatch(name -> line.contains(name)))
+                        .distinct()
+                        .map(line -> {
+                            if (line.contains("[测点]")) {
+                                Double severity = severityMap.get(line.substring(line.indexOf("]") + 1).trim());
+                                if (severity != null && severity !=0) {
+                                    return line + (severity > 0 ? "（实际值偏大）" : "（实际值偏小）");
+                                }
+                            }
+                            return line;
+                        })
+                        .collect(Collectors.joining("\n"));
+                stringBuilder.append(result).append("\n");
             }
         }
         return stringBuilder.toString();

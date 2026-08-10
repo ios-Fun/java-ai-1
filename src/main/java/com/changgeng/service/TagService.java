@@ -42,11 +42,11 @@ public class TagService {
      * low/normal/high:  超限偏低/正常/偏高个数
      */
     private static final List<String> STATISTIC_COLS = Arrays.asList(
-            "sys", "sub", "tag", "unit",
-            "min", "max", "avg",
-            "emin", "emax", "eavg",
-            "smin", "smax", "savg",
-            "low", "normal", "high"
+            "systemName", "subsystemName", "tagName", "unit",
+            "realTimeDateMin", "realTimeDateMax", "realTimeDateAvg",
+            "estimateMin", "estimateMax", "estimateAvg",
+            "severityMin", "severityMmax", "severityAvg",
+            "XXLowNum", "normalNum", "XXHignum"
             );
 
     public List<Map> getTagInfos(
@@ -152,17 +152,17 @@ public class TagService {
         row.add(tagInfo.get("name"));
         row.add(tagInfo.get("unit"));
 
-        row.add(realStat.min);
-        row.add(realStat.max);
-        row.add(realStat.avg);
+        row.add(Math.round(realStat.min * 1000) / 1000.0);
+        row.add(Math.round(realStat.max * 1000) / 1000.0);
+        row.add(Math.round(realStat.avg * 1000) / 1000.0);
 
-        row.add(estimateStat==null?null:estimateStat.min);
-        row.add(estimateStat==null?null:estimateStat.max);
-        row.add(estimateStat==null?null:estimateStat.avg);
+        row.add(estimateStat==null?null:Math.round(estimateStat.min * 1000) / 1000.0);
+        row.add(estimateStat==null?null:Math.round(estimateStat.max * 1000) / 1000.0);
+        row.add(estimateStat==null?null:Math.round(estimateStat.avg * 1000) / 1000.0);
 
-        row.add(severityStat==null?null:severityStat.min);
-        row.add(severityStat==null?null:severityStat.max);
-        row.add(severityStat==null?null:severityStat.avg);
+        row.add(severityStat==null?null:Math.round(severityStat.min * 1000) / 1000.0);
+        row.add(severityStat==null?null:Math.round(severityStat.max * 1000) / 1000.0);
+        row.add(severityStat==null?null:Math.round(severityStat.avg * 1000) / 1000.0);
 
         row.add(limitCounts[0]);
         row.add(limitCounts[1]);
