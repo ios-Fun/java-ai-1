@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @RestController
@@ -426,42 +427,36 @@ public class DeviceHealthyController {
      */
     @RequestMapping("/device/tagsRealTimeV2")
     public Map tagsRealTimeValueV2(@RequestBody List<Object> list) {
-        Map result = new HashMap<>();
-        List data = new ArrayList<>();
-        for (int j = 0; j < list.size(); j++) {
-            Object item = list.get(j);
-            Integer incidentId = null;
+        Map result = new ConcurrentHashMap<>();
+        List data = Collections.synchronizedList(new ArrayList<>());
+
+        list.parallelStream().forEach(item -> {
+            Integer incidentId;
             if (item instanceof Map) {
-                Map<String, Object> dataMap = (Map<String, Object>) item;
-                incidentId = (Integer) dataMap.get("incidentId");
-            } else if (item instanceof Integer) {
-                incidentId = (Integer) item;
-            } else if (item instanceof String) {
+                incidentId = (Integer) ((Map<?, ?>) item).get("incidentId");
+            } else {
                 incidentId = Integer.valueOf(String.valueOf(item));
             }
-            // 获取: 故障模式、特征、测点
             List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(incidentId);
-            // 结束时间
-            Date striggerTime = defectIncidentInfoList.get(0).getLastTime();
-            // 前后半小时
-            Date startTime = new Date(striggerTime.getTime() - 30 * 60 * 1000);
-            Date endTime = new Date(striggerTime.getTime() + 30 * 60 * 1000);
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.of("UTC"));
-            String startTimeStr = formatter.format(startTime.toInstant());
-            String endTimeStr = formatter.format(endTime.toInstant());
 
-            for (DefectIncidentInfo defectIncidentInfo : defectIncidentInfoList) {
-                String type = defectIncidentInfo.getType();
-                if (type.equals("测点")) {
-                    log.info("tag: {}, {}, {}", defectIncidentInfo.getTagCode(), defectIncidentInfo.getSubsystemId(), defectIncidentInfo.getName());
-                    String tagCode = defectIncidentInfo.getTagCode();
-                    Map<String, Object> tagResult = tagService.tagStatisticData(null, tagCode, null, startTimeStr, endTimeStr, null);
-                    if(result.isEmpty()) result = tagResult;
-                    if(tagResult!=null && tagResult.get("data")!=null) data.add(((ArrayList) tagResult.get("data")).get(0));
-                }
+            Date triggerTime = defectIncidentInfoList.get(0).getLastTime();
+            String startTimeStr = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+                    .withZone(ZoneId.of("UTC"))
+                    .format(new Date(triggerTime.getTime() - 30 * 60 * 1000).toInstant());
+            String endTimeStr = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+                    .withZone(ZoneId.of("UTC"))
+                    .format(new Date(triggerTime.getTime() + 30 * 60 * 1000).toInstant());
+
+            for (DefectIncidentInfo info : defectIncidentInfoList) {
+                if (!"测点".equals(info.getType())) continue;
+                Map<String, Object> tagResult = tagService.tagStatisticData(null, info.getTagCode(), null, startTimeStr, endTimeStr, null);
+
+                if (tagResult != null && result.isEmpty()) result.putAll(tagResult);
+                if (tagResult != null && tagResult.get("data") != null)  data.add(((ArrayList<?>) tagResult.get("data")).get(0));
             }
-        }
-        result.put("data",data);
+        });
+
+        result.put("data", data);
         return result;
     }
 
