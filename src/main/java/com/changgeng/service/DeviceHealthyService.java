@@ -1,5 +1,6 @@
 package com.changgeng.service;
 
+import com.alibaba.fastjson.JSONObject;
 import com.changgeng.client.DamCoreClient;
 import com.changgeng.client.FastgptClient;
 import com.changgeng.config.RagConfig;
@@ -13,6 +14,7 @@ import com.changgeng.tool.InstanceQueryParam;
 import com.changgeng.tree.MultiTreeNode;
 import com.changgeng.tree.TreeNodeService;
 import com.changgeng.tree.TreeNodeValue;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,42 +108,32 @@ public class DeviceHealthyService {
         tag_map.put("datasetSearchExtensionModel", ragConfig.getDatasetSearchExtensionModel());
         tag_map.put("datasetSearchExtensionBg", "");
         Map rootMap = fastgptClient.searchTest(tag_map);
-        // 过滤下内容
-        StringBuilder resultSB = new StringBuilder();
+        // 按 sourceName 分组
+        JSONObject resultMap = new JSONObject();
+
+        Map<String, List<String>> grouped = new LinkedHashMap<>();
         Map<String, Object> dataMap = (Map<String, Object>) rootMap.get("data");
         List<Map<String, Object>> list = (List<Map<String, Object>>) dataMap.get("list");
 
-
         if (list != null && !list.isEmpty()) {
-            resultSB.append("## 可以使用<Cites> </Cites> 中的内容作为本次回答的参考\n");
-            resultSB.append("<Cites>\n");
-
-            for (int i = 0; i < list.size(); i++) {
-                resultSB.append("{\n    ");
-
-                // 1. 拼接 content 字段
-                resultSB.append("\"content\": \"");
-                resultSB.append(list.get(i).get("q"));
-                resultSB.append("\",\n    ");
-
-                // 2. 拼接新增的 sourceName 字段
-                resultSB.append("\"sourceName\": \"");
-                resultSB.append(list.get(i).get("sourceName"));
-                resultSB.append("\"\n");
-
-                resultSB.append("}");
-
-                if (i != list.size() - 1) {
-                    resultSB.append("\n------\n");
-                } else {
-                    resultSB.append("\n");
-                }
+            for (Map<String, Object> item : list) {
+                String sourceName = String.valueOf(item.get("sourceName"));
+                String q = String.valueOf(item.get("q"));
+                grouped.computeIfAbsent(sourceName, k -> new ArrayList<>()).add(q);
             }
-
-            resultSB.append("</Cites>");
+            for (Map.Entry<String, List<String>> entry : grouped.entrySet()) {
+                resultMap.put(entry.getKey(), entry.getValue());
+            }
         }
 
-        return resultSB.toString();
+        // 序列化为 JSON
+        String result;
+        try {
+            result = resultMap.toJSONString();
+        } catch (Exception e) {
+            result = "{\"defect_name\":\"" + instanceName + "\",\"error\":\"serialize_failed\"}";
+        }
+        return result;
     }
 
     public String[] deviceGraphShow(@RequestParam Integer nodeId) {

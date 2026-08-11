@@ -1,5 +1,6 @@
 package com.changgeng.controller;
 
+import com.alibaba.fastjson.JSONObject;
 import com.changgeng.client.*;
 import com.changgeng.config.RagConfig;
 import com.changgeng.handler.InfluxDBServiceJR;
@@ -24,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -36,7 +38,9 @@ import java.io.IOException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @RestController
@@ -196,6 +200,15 @@ public class DeviceHealthyController {
         return deviceHealthyService.deviceRag(tagsNamesString.toString());
     }
 
+    // 注入或创建线程池（建议在配置类中定义）
+    private final Executor ragExecutor = new ThreadPoolTaskExecutor() {{
+        setCorePoolSize(5);
+        setMaxPoolSize(10);
+        setQueueCapacity(100);
+        setThreadNamePrefix("rag-");
+        afterPropertiesSet();
+    }};
+
     /**
      * rag查找(V3)
      * @param cached_defectIds 诊断单list
@@ -204,6 +217,8 @@ public class DeviceHealthyController {
     @RequestMapping("/device/rag/v3")
     public String deviceRagV3(@RequestBody List<Object> cached_defectIds) {
         StringBuilder tagsNamesString = new StringBuilder();
+        JSONObject resJson = new JSONObject();
+        List<String> defects = new ArrayList<>();
         for (int j = 0; j < cached_defectIds.size(); j++) {
             Object item = cached_defectIds.get(j);
             Integer incidentId = null;
@@ -217,12 +232,34 @@ public class DeviceHealthyController {
             }
             // 获取故障模式--有可能故障模式不一样
             List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(incidentId);
-            List<String> collect = defectModeIncidentInfoList.stream().filter(one -> one.getType().equals("故障模式")).map(DefectIncidentInfo::getName).collect(Collectors.toList());
-            for (String items: collect) {
-                tagsNamesString.append(items).append(",");
-            }
+            List<String> collect = defectModeIncidentInfoList.stream().filter(one -> one.getType().equals("故障模式")).map(DefectIncidentInfo::getName).distinct().collect(Collectors.toList());
+            defects.addAll(collect);
         }
-        return deviceHealthyService.deviceRagV2(tagsNamesString.toString());
+        defects = defects.stream().distinct().collect(Collectors.toList());
+
+
+        // 替换原来的 for 循环
+        List<CompletableFuture<Void>> futures = defects.stream()
+                .map(items -> CompletableFuture.runAsync(() -> {
+                    String s = deviceHealthyService.deviceRagV2(items);
+                    try {
+                        JSONObject ragObj = JSONObject.parseObject(s); // 避免双重转义
+                        if (!ragObj.isEmpty()) {
+                            synchronized (resJson) {
+                                resJson.put(items, ragObj);
+                            }
+                        }
+                    } catch (Exception e) {
+                        synchronized (resJson) {
+                            resJson.put(items, s);
+                        }
+                    }
+                }, ragExecutor))
+                .collect(Collectors.toList());
+
+        // 等待所有 RAG 调用完成
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        return resJson.toJSONString();
     }
 
     /**
