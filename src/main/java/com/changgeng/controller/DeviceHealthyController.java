@@ -542,7 +542,7 @@ public class DeviceHealthyController {
     }
 
     /**
-     * 显示主要层级关(只包含故障信息)
+     * 显示主要层级关系(只包含故障信息)
      * @param list 诊断单list
      * @return
      */
@@ -564,9 +564,10 @@ public class DeviceHealthyController {
             }
             List<DefectIncidentInfo> defectModeIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentById(incidentId);
             List<DefectIncidentInfo> defectIncidentInfoList = defectIncidentInfoMapper.selectDefectIncidentListById(incidentId);
-            Map<String, Double> severityMap = defectIncidentInfoList.stream()
-                    .filter(o->o.getType().equals("设备"))
-                    .collect(Collectors.toMap(DefectIncidentInfo::getName, DefectIncidentInfo::getSeverity, (a, b) -> a));
+            Map<String, Double> severityMap = new HashMap<>();
+            defectIncidentInfoList.stream()
+                    .filter(o -> "测点".equals(o.getType()) || "特征".equals(o.getType()))
+                    .forEach(o -> severityMap.put(o.getName(), o.getSeverity()));
             Set<String> names = severityMap.keySet();
             for (DefectIncidentInfo defectModeIncidentInfo : defectModeIncidentInfoList) {
                 Long nodeId = defectModeIncidentInfo.getNodeId();
