@@ -1,11 +1,15 @@
 package com.changgeng.controller;
 
 
+import com.alibaba.excel.util.StringUtils;
 import com.changgeng.client.DamExtClient;
 import com.changgeng.common.result.Result;
 import com.changgeng.handler.InfluxDBServiceJR;
+import com.changgeng.mapper.IndicatorEgulationsMapper;
+import com.changgeng.pojo.IndicatorEgulations;
 import com.changgeng.service.TagService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +30,7 @@ public class TagController {
     InfluxDBServiceJR influxDBServiceJR;
     @Autowired
     TagService tagService;
+
 
     /**
      * 测点信息查询接口
@@ -268,4 +273,28 @@ public class TagController {
         log.info("getTagValue result: {}", stringBuilder.toString());
         return Result.success(stringBuilder.toString());
     }
+
+
+    /**
+     * 环保测点，指标查询接口
+     * 根据传入tagId，tagName精准查询指定环保测点或环保指标，或根据fuzzyName模糊查询指定环保测点或环保指标
+     * 请求参数说明:
+     * @param tagId      测点ID(可选)
+     * @param tagName     测点编码(可选)
+     * @param fuzzyName 模糊匹配名称(可选)
+     * @return cols 为列名列表, data 为每个测点一行的统计数据
+     */
+    @RequestMapping("/selectEnvironmentalExamplesByFuzzyMatching")
+    public Result selectEnvironmentalExamplesByFuzzyMatching(
+            @RequestParam(required = false) Integer tagId,
+            @RequestParam(required = false) String tagName,
+            @RequestParam(required = false) String fuzzyName
+    ) {
+        log.info("查询测点统计数据 - tagId: {}, tagName: {}, fuzzyName: {}",
+                tagId, tagName, fuzzyName);
+        return tagService.selectEnvironmentalExamplesByFuzzyMatching(fuzzyName, tagId, tagName);
+
+    }
+
+
 }

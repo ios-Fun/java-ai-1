@@ -1,10 +1,13 @@
 package com.changgeng.service;
 
 
+import com.alibaba.excel.util.StringUtils;
 import com.changgeng.client.DamExtClient;
+import com.changgeng.common.result.Result;
 import com.changgeng.controller.CommonController;
 import com.changgeng.handler.InfluxDBServiceJR;
-import com.changgeng.tool.CommonTool;
+import com.changgeng.mapper.IndicatorEgulationsMapper;
+import com.changgeng.pojo.IndicatorEgulations;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,9 @@ public class TagService {
 
     @Autowired
     CommonController commonController;
+
+    @Autowired
+    private IndicatorEgulationsMapper indicatorEgulationsMapper;
 
     /** 统计采样间隔(秒)，1分钟一个点 */
     private static final int STATISTIC_INTERVAL = 60;
@@ -234,6 +240,85 @@ public class TagService {
         return damExtClient.getAllTags(type, parentName);
     }
 
+    /**
+     * 按 tagType 分类查询并组装环保指标
+     */
+    public Result selectEnvironmentalExamplesByFuzzyMatching(String fuzzyName, Integer tagId, String tagName) {
+        // 1. 获取原始数据
+        List<Map> rawData = damExtClient.selectEnvironmentalExamplesByFuzzyMatching(fuzzyName, tagId, tagName);
+        if (rawData == null || rawData.isEmpty()) {
+            return Result.success("统计查询失败，无对应数据");
+        }
+
+        // 2. 获取所有标准限值
+        List<IndicatorEgulations> allLimits = indicatorEgulationsMapper.getAllIndicatorEgulations();
+
+        // 3. 核心改造：按 tagType 分组，并在分组过程中移除该字段
+        Map<String, List<Map>> groupedResult = rawData.stream()
+                .collect(Collectors.groupingBy(
+                        // Key: 使用 tagType 作为分组的键
+                        item -> String.valueOf(item.get("tagType")),
+
+                        // Value: 对分组内的列表进行处理
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                list -> {
+                                    // 遍历分组后的列表，执行两件事：
+                                    // 1. 移除内部的 tagType 字段
+                                    // 2. 组装 IndicatorEgulations 指标数据
+                                    list.forEach(map -> {
+                                        // 【关键步骤】移除作为 Key 的 tagType，避免 JSON 冗余
+                                        map.remove("tagType");
+
+                                        // 组装关联的环保指标
+                                        List<Map> matchedItems = allLimits.stream()
+                                                .filter(limit -> isMatch(String.valueOf(map.get("name")), limit.getName()))
+                                                .map(limit -> {
+                                                    Map<String, String> item = new HashMap<>();
+                                                    item.put("limit", limit.getLimit());
+                                                    item.put("name", limit.getName());
+                                                    item.put("newLimit", limit.getNewLimit());
+                                                    item.put("importantLimit", limit.getImportantLimit());
+                                                    return item;
+                                                })
+                                                .collect(Collectors.toList());
+
+                                        map.put("IndicatorEgulations", matchedItems);
+                                    });
+                                    return list;
+                                }
+                        )
+                ));
+
+        return Result.success(groupedResult);
+    }
+
+    /**
+     * 抽取出来的匹配逻辑，保持主流程清晰
+     */
+    private List<Map> matchIndicators(Map tag, List<IndicatorEgulations> allLimits) {
+        String tagName = tag.get("name") != null ? tag.get("name").toString() : "";
+
+        return allLimits.stream()
+                .filter(limit -> isMatch(tagName, limit.getName())) // 调用你原本的自定义匹配方法
+                .map(limit -> {
+                    Map<String, String> item = new HashMap<>();
+                    item.put("limit", limit.getLimit());
+                    item.put("name", limit.getName());
+                    item.put("newLimit", limit.getNewLimit());
+                    item.put("importantLimit", limit.getImportantLimit());
+                    return item;
+                })
+                .collect(Collectors.toList());
+    }
+
+    // 简单的匹配算法示例
+    private boolean isMatch(String tagName, String standardName) {
+        if (StringUtils.isBlank(tagName) || StringUtils.isBlank(standardName)) return false;
+        // 逻辑：如果测点名包含标准名 (如 "烟气温度" 包含 "温度")
+        // 或者 标准名包含测点名
+        return tagName.contains(standardName) || standardName.contains(tagName);
+    }
 
     /** 时序统计中间结果 */
     private static class Stat {

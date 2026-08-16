@@ -39,4 +39,9 @@ public interface DamExtClient {
 
     @PostMapping("/graph/getAllTags")
     List<Map> getAllTags(@RequestParam String type, @RequestParam String parentName);
+
+    @PostMapping("/graph/selectEnvironmentalExamplesByFuzzyMatching")
+    List<Map> selectEnvironmentalExamplesByFuzzyMatching(@RequestParam(required = false) String fuzzyName,
+                                                         @RequestParam(required = false) Integer id,
+                                                         @RequestParam(required = false) String tagName);
 }

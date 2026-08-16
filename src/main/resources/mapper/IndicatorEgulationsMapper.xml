@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.changgeng.mapper.IndicatorEgulationsMapper">
+  <resultMap id="BaseResultMap" type="com.changgeng.pojo.IndicatorEgulations">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="name" jdbcType="VARCHAR" property="name" />
+    <result column="new_limit" jdbcType="VARCHAR" property="newLimit" />
+    <result column="limit" jdbcType="VARCHAR" property="limit" />
+    <result column="important_limit" jdbcType="VARCHAR" property="importantLimit" />
+  </resultMap>
+  <select id="getAllIndicatorEgulations" resultMap="BaseResultMap">
+    select * from indicator_egulations
+  </select>
+</mapper>
