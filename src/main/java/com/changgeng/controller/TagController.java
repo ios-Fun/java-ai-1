@@ -183,7 +183,7 @@ public class TagController {
             return Result.error(400, "时间传递错误");
         }
         Map<String, Object> result = tagService.tagStatisticData(tagId, tagName, srcTagName, startTime, endTime, parentName);
-        return result.isEmpty() ? Result.success("统计数据失败") : Result.success(result);
+        return result.isEmpty() ? Result.success("统计数据为空") : Result.success(result);
     }
 
     @RequestMapping("/getAllTags")
@@ -193,7 +193,7 @@ public class TagController {
     ) {
         log.info("查询所有标签 - type: {}, parentName: {}", type, parentName);
         List<Map> result = tagService.getAllTags(type, parentName);
-        return result.isEmpty() ? Result.success("查询失败") : Result.success(result);
+        return result.isEmpty() ? Result.success("查询测点数据为空") : Result.success(result);
     }
 
     /*
