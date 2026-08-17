@@ -188,11 +188,15 @@ public class TagController {
 
     @RequestMapping("/getAllTags")
     public Result getAllTags(
-            @RequestParam(required = true) String type,
-            @RequestParam(required = false) String parentName
+            @RequestParam String type,
+            @RequestParam(required = false) String parentName,
+            @RequestParam String tagType
     ) {
+        if (!"开关量".equals(tagType) && !"模拟量".equals(tagType)) {
+            return Result.error(400, "测点类型必须为开关量或模拟量");
+        }
         log.info("查询所有标签 - type: {}, parentName: {}", type, parentName);
-        List<Map> result = tagService.getAllTags(type, parentName);
+        List<Map> result = tagService.getAllTags(type, parentName, tagType);
         return result.isEmpty() ? Result.success("查询测点数据为空") : Result.success(result);
     }
 

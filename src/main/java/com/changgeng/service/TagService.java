@@ -82,7 +82,7 @@ public class TagService {
         List<Map> tagInfos;
         if (tagId == null && tagName == null && srcTagName == null) {
             List<Map> parentNameMarched = (List<Map>) commonController.matchForBest(parentName, 1).getData();
-            tagInfos = damExtClient.getAllTags(parentNameMarched.get(0).get("type").toString(), parentNameMarched.get(0).get("name").toString());
+            tagInfos = damExtClient.getAllTags(parentNameMarched.get(0).get("type").toString(), parentNameMarched.get(0).get("name").toString(), null);
         } else {
             tagInfos = getTagInfos(tagId, tagName, srcTagName, null).stream()
                     .map(o ->{
@@ -236,8 +236,8 @@ public class TagService {
         return map;
     }
 
-    public List<Map> getAllTags(String type, String parentName) {
-        return damExtClient.getAllTags(type, parentName);
+    public List<Map> getAllTags(String type, String parentName, String tagType) {
+        return damExtClient.getAllTags(type, parentName, tagType);
     }
 
     /**
@@ -289,7 +289,7 @@ public class TagService {
                                 }
                         )
                 ));
-
+        groupedResult.remove("测点");
         return Result.success(groupedResult);
     }
 
