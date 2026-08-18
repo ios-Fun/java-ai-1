@@ -12,12 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -318,6 +316,77 @@ public class TagService {
         // 逻辑：如果测点名包含标准名 (如 "烟气温度" 包含 "温度")
         // 或者 标准名包含测点名
         return tagName.contains(standardName) || standardName.contains(tagName);
+    }
+
+    public Result getDeepPeakStatistic(Integer unitId, Double loadRate, String startTime, String endTime) {
+        if (loadRate == null)  return Result.error(400, "负荷率参数丢失");
+        Map loadRateIndicator = damExtClient.getLoadRateIndicatorByUnitId(unitId);
+        if (loadRateIndicator == null) return Result.success("无有效指标");
+        String loadRateIndicatorType = (String) loadRateIndicator.get("type");
+        if (!"指标".equals(loadRateIndicatorType)) return Result.success("无有效数据");
+        String loadRateIndicatorTagName = (String) loadRateIndicator.get("tagCode");
+        Integer subsystemId = damExtClient.getSubSystemIdByTTS(null, loadRateIndicatorTagName, null);
+
+        List<Map> realValues = influxDBServiceJR.queryValues3(loadRateIndicatorTagName, subsystemId, startTime, endTime, "RealTimeData", STATISTIC_INTERVAL);
+        List<Map<String, Object>> result = new ArrayList<>();
+        List<Map> period = new ArrayList<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        long totalDuration = 0;
+        if (!realValues.isEmpty()) {
+            for (Map d : realValues) {
+                Double value = (Double) d.get("value");
+                if (value == null) continue;
+                // 负荷率 <= 指定值，并且 > 0
+                if (value <= loadRate * 100 && value > 0) {
+                    period.add(d);
+                    continue;
+                }
+                // 当前时间段结束，判断 valid
+                if (!period.isEmpty() && period.stream().allMatch(x -> Boolean.TRUE.equals(x.get("valid")))) {
+                    Map min = period.stream().min(Comparator.comparing(x -> (Double) x.get("value"))).get();
+                    String periodStart = (String) period.get(0).get("time");
+                    String periodEnd = (String) period.get(period.size() - 1).get("time");
+                    long duration = Duration.between(
+                            Instant.parse(periodStart),
+                            Instant.parse(periodEnd)
+                    ).getSeconds();
+
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("startTime", periodStart);
+                    m.put("endTime", periodEnd);
+                    m.put("duration", duration);
+                    m.put("minValue", min.get("value"));
+                    m.put("minValueTime", min.get("time"));
+                    result.add(m);
+                    totalDuration += duration;
+                }
+                period.clear();
+            }
+            // 处理最后一个时间段
+            if (!period.isEmpty() && period.stream().allMatch(x -> Boolean.TRUE.equals(x.get("valid")))) {
+                Map min = period.stream().min(Comparator.comparing(x -> (Double) x.get("value"))).get();
+                String periodStart = (String) period.get(0).get("time");
+                String periodEnd = (String) period.get(period.size() - 1).get("time");
+                long duration = Duration.between(
+                        Instant.parse(periodStart),
+                        Instant.parse(periodEnd)
+                ).getSeconds();
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("startTime", periodStart);
+                m.put("endTime", periodEnd);
+                m.put("duration", duration);
+                m.put("minValue", min.get("value"));
+                m.put("minValueTime", min.get("time"));
+                result.add(m);
+                totalDuration += duration;
+            }
+        }
+        Map finalResult = new LinkedHashMap<>();
+        finalResult.put("indicatorId", loadRateIndicator.get("id"));
+        finalResult.put("indicatorName", loadRateIndicator.get("name"));
+        finalResult.put("totalDuration", totalDuration);
+        finalResult.put("result", result);
+        return Result.success(finalResult);
     }
 
     /** 时序统计中间结果 */

@@ -334,5 +334,29 @@ public class TagController {
         return Result.success(result);
     }
 
+    /**
+     * 负荷率统计接口
+     * 根据传入负荷率值loadRate查询指定时间段内的统计数据
+     * 请求参数说明:
+     * @param unitId      机组ID
+     * @param loadRate    负荷率阈值
+     * @param startTime  开始时间(可选),不传默认取结束时间往前半小时
+     * @param endTime    结束时间(必填)
+     * @return 时间区间、最小值与对应时间
+     */
+    @RequestMapping("/getDeepPeakStatistic")
+    public Result getDeepPeakStatistic(
+            @RequestParam(required = false) Integer unitId,
+            @RequestParam(required = true) Double loadRate,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime
+
+    ) {
+        log.info("负荷率统计接口 - unitId: {}, loadRate: {}, startTime: {}, endTime: {} ",
+                unitId, loadRate, startTime, endTime);
+        return tagService.getDeepPeakStatistic(unitId, loadRate, startTime, endTime);
+
+    }
+
 
 }

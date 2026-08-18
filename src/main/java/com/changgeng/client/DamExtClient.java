@@ -44,4 +44,7 @@ public interface DamExtClient {
     List<Map> selectEnvironmentalExamplesByFuzzyMatching(@RequestParam(required = false) String fuzzyName,
                                                          @RequestParam(required = false) Integer id,
                                                          @RequestParam(required = false) String tagName);
+
+    @PostMapping("/graph/getLoadRateIndicatorByUnitId")
+    Map getLoadRateIndicatorByUnitId(@RequestParam Integer unitId);
 }
