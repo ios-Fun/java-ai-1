@@ -203,6 +203,22 @@ public class UnitController {
     }
 
     /**
+     * 查询机组下与关键词相关且实例类型为instance_type的实例
+     * 请求参数说明：
+     * @param unitId 机组节点ID
+     * @param keyword 关键词
+     * @param instanceType   节点类型标签如 "系统"、"子系统"、"设备"、"部件"、"测点"
+     * @return 节点属性列表，每项包含编码、名称、描述、类别等字段
+     *
+     * @return 节点属性列表，每项包含编码、名称、描述、类别等字段
+     */
+    @RequestMapping("/getInstanceOfUnit")
+    public Result getInstanceOfUnit(@RequestParam Integer unitId, @RequestParam String keyword, @RequestParam String instanceType) {
+        List<Map> list = unitService.getInstanceOfUnit(unitId, keyword, instanceType);
+        return Result.success(list);
+    }
+
+    /**
      * 机组测点关系接口
      * 根据机组名称信息信息，返回机组名称，设备名称，特征名称，测点描述数据
      * <p>

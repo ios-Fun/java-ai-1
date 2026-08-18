@@ -16,6 +16,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.changgeng.tool.CommonTool.mixedSimilarity2;
+
 @Service
 @Slf4j
 public class UnitService {
@@ -260,5 +262,19 @@ public class UnitService {
         }
 
         return alarmListRes;
+    }
+
+    public List<Map> getInstanceOfUnit(Integer unitId, String keyword, String instanceType) {
+        if(unitId == null || instanceType == null) return new ArrayList<>();
+        List<Map> items = getItems(unitId, instanceType);
+        if(items.isEmpty()) return new ArrayList<>();
+        return items.parallelStream()
+                .filter(item -> {
+                    String itemName = item.get("名称").toString();
+                    double similarity = mixedSimilarity2(keyword, itemName);
+                    if (similarity > 0.4) return true;
+                    return false;
+                })
+                .collect(Collectors.toList());
     }
 }
