@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -30,6 +31,9 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.*;
 import java.util.Date;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -769,6 +773,111 @@ public class InfluxDBServiceJR {
             e.printStackTrace();
         }
         return result;
+    }
+
+    // 查询最近时刻的一个值
+    public String queryLatestByCurValue(String tagName, Integer subsystemId, Integer switchValue) {
+        String result = "";
+        try {
+            String sql;
+            sql = String.format(
+                    "SELECT Value as value, TagName as tagName, Valid as valid " +
+                            "FROM RealTimeData_%d " +
+                            "WHERE TagName = '%s' and Value = %d order by time desc limit 1",
+                    subsystemId, tagName, switchValue
+            );
+            // 执行查询
+            List<QueryResult.Result> results = influxDB.query(new Query(sql)).getResults();
+
+            if (results != null && !results.isEmpty() && results.get(0).getSeries() != null) {
+                List<QueryResult.Series> seriesList = results.get(0).getSeries();
+
+                if (seriesList != null && !seriesList.isEmpty()) {
+                    QueryResult.Series series = seriesList.get(0);
+                    List<List<Object>> values = series.getValues();
+
+                    if (values != null && !values.isEmpty()) {
+                        log.info("查询成功,返回 " + values.size() + " 条数据");
+                        for (List<Object> row : values) {
+                            Map<String, Object> dataMap = new HashMap<>();
+
+                            if (row.size() >= 4) {
+                                String returnTime = (String) row.get(0);
+                                String tag = (String) row.get(2);
+                                Double value = row.get(1) != null ? ((Number) row.get(1)).doubleValue() : null;
+                                Boolean valid = row.get(3) != null ? (Boolean) row.get(3) : false;
+                                dataMap.put("time", returnTime);
+                                dataMap.put("tagName", tag);
+                                dataMap.put("value", value);
+                                dataMap.put("valid", valid);
+                                result = String.format("时间：%s, 值: %f", returnTime, value);
+                            }
+                        }
+                    } else {
+                        log.warning("查询结果为空,该时间段内无数据");
+                        result = "该时刻值为空";
+                    }
+                }
+            } else {
+                log.warning("查询结果为空或格式不正确");
+                result = "该时刻值为空";
+            }
+        } catch (Exception e) {
+            log.warning("查询测点数据失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+
+    public String querySwitchTransitions(String tagName, Integer subsystemId, String startTime, String endTime) {
+        String cacheKey = String.format("trans:%d:%s:%s:%s", subsystemId, tagName, startTime, endTime);
+
+        StringBuilder sb = new StringBuilder();
+        try {
+            // 仅查询 Value 和 Time
+            String sql = String.format(
+                    "SELECT Value FROM RealTimeData_%d WHERE Valid = true and TagName = '%s' AND time >= '%s' AND time <= '%s' ORDER BY time ASC",
+                    subsystemId, tagName, startTime, endTime
+            );
+
+            // 使用传统方式获取完整结果集
+            QueryResult queryResult = influxDB.query(new Query(sql));
+
+            // 防御性判空，确保结果集不为空
+            if (queryResult != null && queryResult.getResults() != null && !queryResult.getResults().isEmpty()) {
+                List<QueryResult.Series> seriesList = queryResult.getResults().get(0).getSeries();
+
+                if (seriesList != null && !seriesList.isEmpty()) {
+                    List<List<Object>> values = seriesList.get(0).getValues();
+
+                    if (values != null && !values.isEmpty()) {
+                        Double lastValue = null;
+                        for (List<Object> row : values) {
+                            // 假设返回列顺序为: [0]=time, [1]=value
+                            String time = row.get(0) != null ? row.get(0).toString() : "";
+                            Double currentValue = row.get(1) != null ? ((Number) row.get(1)).doubleValue() : null;
+
+                            // 判断跳变
+                            if (lastValue != null && currentValue != null && !lastValue.equals(currentValue)) {
+                                String transitionType = (lastValue == 0.0 && currentValue == 1.0) ? "0to1" : "1to0";
+                                if (sb.length() > 0) sb.append("\n");
+                                sb.append("\"").append(transitionType).append("\":\"").append(time).append("\"");
+                            }
+                            lastValue = currentValue;
+                        }
+                    }
+                }
+            }
+
+            String result = sb.length() > 0 ? sb.toString() : "该时间段内无跳变";
+
+            return result;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "查询失败: " + e.getMessage();
+        }
     }
 
     public List<Map> queryValues3(String tagName, Integer subsystemId, String startTime, String endTime, String type, Integer interval) {

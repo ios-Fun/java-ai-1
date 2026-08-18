@@ -300,5 +300,39 @@ public class TagController {
 
     }
 
+    /**
+     * 开关量跳变情况查询
+     * 根据传入的测点编码，子系统id，查询该开关量的情况，参数传递仅有如下两种情况：
+     * 1.当传递value，且startTime和endTime均不传递时，查询的是当该开关量等于该值的最新时间
+     * 2.当传递startTime和endTime，且value不传递时，查询的是该开关量在当前时间窗口内每次变动的时间戳
+     * 当且仅当满足上述情况之一，该接口才能正确查询
+     * @param tagName       测点编码
+     * @param value         开关量指定值（0或1）
+     * @param startTime     查询窗口起始时间
+     * @param endTime       查询窗口结束时间
+     * @return
+     */
+    @RequestMapping("/getLastTimeBySwitchName")
+    public Result getLastTimeBySwitchName(
+            @RequestParam String tagName,
+            @RequestParam(required = false) Integer value,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime
+    ) {
+        String result = "";
+        if (startTime == null && endTime == null && value != null) {
+            Integer subsystemId = damExtClient.getSubSystemIdByTTS(null, tagName, null);
+            result = influxDBServiceJR.queryLatestByCurValue(tagName, subsystemId, value);
+        }
+        else if (startTime != null && endTime != null && value == null) {
+            Integer subsystemId = damExtClient.getSubSystemIdByTTS(null, tagName, null);
+            result = influxDBServiceJR.querySwitchTransitions(tagName, subsystemId, startTime, endTime);
+        }
+        else {
+            result = "输入参数不合规，重新阅读输入条件，并重新检查数据参数";
+        }
+        return Result.success(result);
+    }
+
 
 }
