@@ -203,7 +203,7 @@ public class UnitController {
     }
 
     /**
-     * 查询机组下与关键词相关且实例类型为instance_type的实例
+     * 查询机组下与关键词相关且实例类型为instance_type的实例，若keyword为空，则返回机组下instance_type的所有实例。
      * 请求参数说明：
      * @param unitId 机组节点ID
      * @param keyword 关键词
@@ -213,7 +213,11 @@ public class UnitController {
      * @return 节点属性列表，每项包含编码、名称、描述、类别等字段
      */
     @RequestMapping("/getInstanceOfUnit")
-    public Result getInstanceOfUnit(@RequestParam Integer unitId, @RequestParam String keyword, @RequestParam String instanceType) {
+    public Result getInstanceOfUnit(@RequestParam Integer unitId, @RequestParam(required = false) String keyword, @RequestParam String instanceType) {
+        if (keyword==null || keyword.equals("")){
+            List<Map> list = unitService.getItems(unitId, instanceType);
+            return Result.success(list);
+        }
         List<Map> list = unitService.getInstanceOfUnit(unitId, keyword, instanceType);
         return Result.success(list);
     }
