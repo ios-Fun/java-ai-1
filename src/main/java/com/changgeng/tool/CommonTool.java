@@ -87,7 +87,12 @@ public class CommonTool {
             return 0.0;
         }
 
-        // 1. 字符级Dice系数：基于字符集合的重叠度
+        // 1. LCS连续覆盖度：计算实体名在输入中连续出现的最长子串占比
+        int lcsLen = longestCommonSubstringLen(entityStr, targetStr);
+        if (lcsLen == 0) return 0.0;
+        double lcsCoverage = (double) lcsLen / entityStr.length();
+
+        // 2. 字符级Dice系数
         Set<Character> entitySet = new HashSet<>();
         for (char c : entityStr.toCharArray()) entitySet.add(c);
         Set<Character> targetSet = new HashSet<>();
@@ -97,7 +102,6 @@ public class CommonTool {
         for (char c : entitySet) {
             if (targetSet.contains(c)) charIntersection++;
         }
-        if (charIntersection == 0) return 0.0;
         double charDice = 2.0 * charIntersection / (entitySet.size() + targetSet.size());
 
         // 2. 二元组Dice系数：捕捉字符顺序信息
@@ -118,12 +122,12 @@ public class CommonTool {
             bigramDice = 2.0 * bigramIntersection / (entityBigrams.size() + targetBigrams.size());
         }
 
-        // 3. LCS覆盖奖励：最长公共连续子串占设备名的比例
-        int lcsLen = longestCommonSubstringLen(entityStr, targetStr);
-        double lcsCoverage = (double) lcsLen / entityStr.length();
+        // 4. 完整连续包含额外加成 (若 targetStr 完整连续包含 entityStr，加成 0.15)
+        double exactContainBonus = (lcsLen == entityStr.length()) ? 0.15 : 0.0;
 
-        // 综合得分：字符Dice(40%) + 二元组Dice(40%) + LCS覆盖(20%)
-        return Math.min(1.0, 0.4 * charDice + 0.4 * bigramDice + 0.2 * lcsCoverage);
+        // 综合得分：LCS连续覆盖(50%) + 二元组Dice(30%) + 字符Dice(20%) + 完整包含加成
+        double score = 0.50 * lcsCoverage + 0.30 * bigramDice + 0.20 * charDice + exactContainBonus;
+        return Math.min(1.0, score);
     }
 
     //计算两个字符串的最长公共子串长度（动态规划）

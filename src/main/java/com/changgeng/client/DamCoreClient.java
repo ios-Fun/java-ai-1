@@ -21,4 +21,8 @@ public interface DamCoreClient {
 
     @PostMapping("/api/v1/dam/instance/query/select/ignore/distance/by/condition")
     Map querySelectIgnoreDistanceByCondition(@RequestBody InstanceQueryParam param);
+
+    @PostMapping("/api/v1/dam/instance/query/node/by/list/nodeid")
+    Map queryNodeByListNodeId(@RequestBody Map params);
+
 }

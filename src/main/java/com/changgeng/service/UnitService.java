@@ -38,9 +38,44 @@ public class UnitService {
         return list;
     }
 
-    public List<AlarmTable> getAlarmList(AlarmListRequest request) {
+    public List<?> getAlarmList(AlarmListRequest request) {
         List<AlarmTable> alarmList = alarmTableMapper.selectAlarmList(request);
-        return alarmList;
+        if (alarmList.size() <= 20) return alarmList;
+        // >20 qifei
+        List<Integer> assetNumbers = alarmList.stream()
+                .map(AlarmTable::getAssetNumber)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("nodeIdList", assetNumbers);
+        Map result = damCoreClient.queryNodeByListNodeId(params);
+        List<Map<String, Object>> nodes = (List<Map<String, Object>>) result.get("data");
+        Map<String, String> nameMap = nodes == null ? Collections.emptyMap() : nodes.stream()
+                .collect(Collectors.toMap(
+                node -> String.valueOf(node.get("id")),
+                node -> String.valueOf(((Map<?, ?>) node.get("properties")).get("名称")),
+                (a, b) -> a));
+
+        return alarmList.parallelStream()
+                .map(o -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("tagName", o.getTagName());
+                    m.put("tagSourceName", o.getTagSourceName());
+                    m.put("firstTouchTime", o.getFirstTouchTime());
+                    m.put("lastTouchTime", o.getLastTouchTime());
+                    m.put("subSystemId", o.getAssetNumber());
+                    m.put("subSystemName", nameMap.get(o.getAssetNumber()));
+                    m.put("dataType", o.getDataType());
+                    m.put("tagId", o.getTagId());
+                    m.put("closed", o.getClosed());
+                    m.put("alarmType", o.getAlarmType());
+                    m.put("tagDescription", o.getTagDescription());
+                    m.put("currentStatusName", o.getCurrentStatusName());
+                    m.put("actual", o.getActual());
+                    m.put("unit", o.getUnit());
+                    return m;
+                })
+                .collect(Collectors.toList());
     }
 
     public List<SystemIncidentInfo> getSystemIncidentList(SystemIncidentRequest request) {
