@@ -40,19 +40,19 @@ public class CommonController {
      * @return 相似度最高的前num个实例信息（包含id、name、code、type、similarity）
      */
     @RequestMapping("/matchForBest")
-    public Result matchForBest(@RequestParam String matchString, @RequestParam(required = false, defaultValue = "0") int num) {
+    public Result matchForBest(@RequestParam String matchString,
+                               @RequestParam(required = false, defaultValue = "0") int num,
+                               @RequestParam(required = false) String matchType ) {
         instanceList = damExtClient.getInstanceList().stream()
                 .map(o -> {
                     String type = (String) o.get("type");
                     if ("开关量".equals(type) || "模拟量".equals(type)) o.put("type", "测点-" + type);
                     return o;
-                })
-                .collect(Collectors.toList());
-
+                }).collect(Collectors.toList());
 
         for (String w : NOISE)
             matchString = matchString.replace(w, "");
-        List<Map> matchedStr =  CommonTool.getBestMatchingStr(instanceList,matchString, num);
+        List<Map> matchedStr =  CommonTool.getBestMatchingStr(instanceList,matchString, num, matchType);
         log.info("matchedResult: {}", matchedStr);
         return Result.success(matchedStr);
     }

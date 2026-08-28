@@ -164,12 +164,13 @@ public class CommonTool {
     }
 
     // 获取前num个最佳匹配字符串
-    public static List<Map> getBestMatchingStr(List<Map> mapList, String targetStr, int num) {
+    public static List<Map> getBestMatchingStr(List<Map> mapList, String targetStr, int num, String type) {
         if (mapList == null || mapList.isEmpty()) {
             return Collections.emptyList();
         }
 
-        List<Map> scored = mapList.stream()
+        List<Map> scored = mapList.parallelStream()
+                .filter(map -> type == null || type.isEmpty() || type.equals(map.get("type")))
                 .map(map -> {
                     String compareValue = map.get("name").toString();
                     double similarity = mixedSimilarity2(compareValue, targetStr);
