@@ -46,7 +46,7 @@ public class TagController {
      * @return 测点信息列表,包含测点ID、编码、源标签点名、名称等信息
      */
     @RequestMapping("/getTagInfos")
-    public Result setTagInfos(@RequestParam(required = false) Integer tagId, @RequestParam(required = false) String tagName, @RequestParam(required = false) String srcTagName,
+    public Result getTagInfos(@RequestParam(required = false) Integer tagId, @RequestParam(required = false) String tagName, @RequestParam(required = false) String srcTagName,
                               @RequestParam(required = false) String name
     ) {
         log.info("查询测点信息 - tagId: {}, tagName: {}, srcTagName: {}, tagName: {}", tagId, tagName, srcTagName, name);

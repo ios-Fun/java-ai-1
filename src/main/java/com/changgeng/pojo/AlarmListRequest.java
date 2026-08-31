@@ -11,6 +11,7 @@ public class AlarmListRequest {
     private Date startTime;
     private Date endTime;
     private Integer assetNumber;
+    private Integer assetId;
     private String dataType;
     private String currentStatusName;
     private Integer tagId;

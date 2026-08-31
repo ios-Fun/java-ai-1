@@ -25,6 +25,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result column="alarmlevel" jdbcType="VARCHAR" property="alarmLevel"/>
         <result column="actual" jdbcType="VARCHAR" property="actual"/>
         <result column="unit" jdbcType="VARCHAR" property="unit"/>
+        <result column="total" jdbcType="INTEGER" property="total"/>
     </resultMap>
 
     <select id="selectAlarmList" resultMap="BaseResultMap">

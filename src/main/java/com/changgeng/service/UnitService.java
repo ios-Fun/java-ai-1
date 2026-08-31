@@ -32,6 +32,8 @@ public class UnitService {
     DefectIncidentMapper defectIncidentMapper;
     @Autowired
     DefectIncidentInfoMapper defectIncidentInfoMapper;
+    @Autowired
+    private TagService tagService;
 
     public List<Map> getItems(Integer unitId, String type) {
         List<Map> list = damExtClient.getItems(unitId, type);
@@ -40,6 +42,26 @@ public class UnitService {
 
     public List<?> getAlarmList(AlarmListRequest request) {
         List<AlarmTable> alarmList = alarmTableMapper.selectAlarmList(request);
+        if(request.getAssetId() != null && request.getAssetId() != 0){
+            Map<String, Object> params = new HashMap<>();
+            params.put("nodeIdList", Arrays.asList(request.getAssetId()));
+            Map result = damCoreClient.queryNodeByListNodeId(params);
+            String assetName = ((Map)(((List<Map>) result.get("data")).get(0)).get("properties")).get("名称").toString();
+            List<Integer> tagIds;
+            if(assetName != null && !assetName.isEmpty()){
+                tagIds = tagService.getAllTags("设备",assetName,null).stream()
+                        .map(m ->  (Integer) m.get("tagId"))
+                        .collect(Collectors.toList());
+            } else {
+                tagIds = new ArrayList<>();
+            }
+            if(tagIds != null && !tagIds.isEmpty()){
+                alarmList = alarmList.stream()
+                        .filter(alarm -> tagIds.contains(alarm.getTagId().intValue()))
+                        .collect(Collectors.toList());
+            }
+        }
+
         if (alarmList.size() <= 20) return alarmList;
         // >20 qifei
         List<Integer> assetNumbers = alarmList.stream()
@@ -64,7 +86,7 @@ public class UnitService {
                     m.put("firstTouchTime", o.getFirstTouchTime());
                     m.put("lastTouchTime", o.getLastTouchTime());
                     m.put("subSystemId", o.getAssetNumber());
-                    m.put("subSystemName", nameMap.get(o.getAssetNumber()));
+                    m.put("subSystemName", nameMap.get(o.getAssetNumber().toString()));
                     m.put("dataType", o.getDataType());
                     m.put("tagId", o.getTagId());
                     m.put("closed", o.getClosed());
@@ -73,6 +95,7 @@ public class UnitService {
                     m.put("currentStatusName", o.getCurrentStatusName());
                     m.put("actual", o.getActual());
                     m.put("unit", o.getUnit());
+                    m.put("total", o.getTotal());
                     return m;
                 })
                 .collect(Collectors.toList());
@@ -251,6 +274,25 @@ public class UnitService {
 
     public Map<String, Object> getAlarmListStatistics(AlarmListRequest request) {
         List<AlarmTable> alarmList = alarmTableMapper.selectAlarmList(request);
+        if(request.getAssetId() != null && request.getAssetId() != 0){
+            Map<String, Object> params = new HashMap<>();
+            params.put("nodeIdList", Arrays.asList(request.getAssetId()));
+            Map result = damCoreClient.queryNodeByListNodeId(params);
+            String assetName = ((Map)(((List<Map>) result.get("data")).get(0)).get("properties")).get("名称").toString();
+            List<Integer> tagIds;
+            if(assetName != null && !assetName.isEmpty()){
+                tagIds = tagService.getAllTags("设备",assetName,null).stream()
+                        .map(m ->  (Integer) m.get("tagId"))
+                        .collect(Collectors.toList());
+            } else {
+                tagIds = new ArrayList<>();
+            }
+            if(tagIds != null && !tagIds.isEmpty()){
+                alarmList = alarmList.stream()
+                        .filter(alarm -> tagIds.contains(alarm.getTagId().intValue()))
+                        .collect(Collectors.toList());
+            }
+        }
 
         Map<String, Object> alarmListRes = new LinkedHashMap<>();
 

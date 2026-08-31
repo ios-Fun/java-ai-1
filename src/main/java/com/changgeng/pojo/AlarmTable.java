@@ -29,4 +29,5 @@ public class AlarmTable {
     private Double variation;
     private String actual;
     private String unit;
+    private Integer total;
 }
