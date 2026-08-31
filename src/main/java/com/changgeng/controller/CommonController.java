@@ -24,9 +24,11 @@ public class CommonController {
     @Autowired
     DamExtClient damExtClient;
 
-    private static final Set<String> NOISE = new HashSet<>(Arrays.asList("运行状况","运行情况","运行状态","运行怎",
-            "情况","状态","如何","怎么样","怎样","最近","今天","昨天","健康","评估",
-            "有没有","问题","是否","正常","时间","想","下","看","查","一下")) ;
+    private static final Set<String> NOISE = new HashSet<>(Arrays.asList(
+            "运行状况","运行情况","运行状态","运行怎","情况","状态","如何","怎么样","怎样",
+            "最近","今天","昨天","健康","评估","有没有","问题","是否","正常","时间",
+            "想","下","看","查","一下","趋势","历史","曲线","数据","值","的"
+    ));
 
     /**
      * 根据输入的匹配字符串，从所有实例中模糊匹配出相似度最高的前num个实例。

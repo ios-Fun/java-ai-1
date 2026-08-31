@@ -78,56 +78,92 @@ public class CommonTool {
 
     /**
      * 优化后的混合相似度算法
-     * 三维评分：字符Dice(整体重叠) + 二元组Dice(顺序敏感) + LCS覆盖(连续匹配)
-     * @param entityStr 数据库中的实例/设备/测点名称 (短)
-     * @param targetStr 用户输入的查询语句 (长)
+     * 1. 完全一致独占 1.0
+     * 2. 基于频次的字符统计（避免 Set 吃掉重复数字/编号）
+     * 3. LCS 连续覆盖率主导
+     * 4. 编号/后缀截断惩罚（精准区分 温度1、温度2 等测点）
      */
     public static double mixedSimilarity2(String entityStr, String targetStr) {
         if (entityStr == null || targetStr == null || entityStr.isEmpty() || targetStr.isEmpty()) {
             return 0.0;
         }
 
-        // 1. LCS连续覆盖度：计算实体名在输入中连续出现的最长子串占比
+        // 1. 完全一致：满分 1.0
+        if (entityStr.equals(targetStr)) {
+            return 1.0;
+        }
+
+        int entityLen = entityStr.length();
+        int targetLen = targetStr.length();
+
+        // 2. 最长公共连续子串 (LCS)
         int lcsLen = longestCommonSubstringLen(entityStr, targetStr);
         if (lcsLen == 0) return 0.0;
-        double lcsCoverage = (double) lcsLen / entityStr.length();
+        double entityCoverage = (double) lcsLen / entityLen;
 
-        // 2. 字符级Dice系数
-        Set<Character> entitySet = new HashSet<>();
-        for (char c : entityStr.toCharArray()) entitySet.add(c);
-        Set<Character> targetSet = new HashSet<>();
-        for (char c : targetStr.toCharArray()) targetSet.add(c);
+        // 3. 基于频次的字符匹配率（区分多出现的编号数字）
+        int[] targetCharCount = new int[65536];
+        for (char c : targetStr.toCharArray()) targetCharCount[c]++;
 
-        int charIntersection = 0;
-        for (char c : entitySet) {
-            if (targetSet.contains(c)) charIntersection++;
+        int commonCharCount = 0;
+        for (char c : entityStr.toCharArray()) {
+            if (targetCharCount[c] > 0) {
+                commonCharCount++;
+                targetCharCount[c]--;
+            }
         }
-        double charDice = 2.0 * charIntersection / (entitySet.size() + targetSet.size());
+        double charMatchRate = (double) commonCharCount / Math.max(entityLen, targetLen);
 
-        // 2. 二元组Dice系数：捕捉字符顺序信息
+        // 4. 二元组Dice系数
         double bigramDice = 0.0;
-        if (entityStr.length() >= 2) {
-            Set<String> entityBigrams = new HashSet<>();
-            for (int i = 0; i < entityStr.length() - 1; i++) {
-                entityBigrams.add(entityStr.substring(i, i + 2));
+        if (entityLen >= 2 && targetLen >= 2) {
+            Map<String, Integer> entityBigrams = new HashMap<>();
+            for (int i = 0; i < entityLen - 1; i++) {
+                String bg = entityStr.substring(i, i + 2);
+                entityBigrams.put(bg, entityBigrams.getOrDefault(bg, 0) + 1);
             }
-            Set<String> targetBigrams = new HashSet<>();
-            for (int i = 0; i < targetStr.length() - 1; i++) {
-                targetBigrams.add(targetStr.substring(i, i + 2));
+            Map<String, Integer> targetBigrams = new HashMap<>();
+            for (int i = 0; i < targetLen - 1; i++) {
+                String bg = targetStr.substring(i, i + 2);
+                targetBigrams.put(bg, targetBigrams.getOrDefault(bg, 0) + 1);
             }
-            int bigramIntersection = 0;
-            for (String bg : entityBigrams) {
-                if (targetBigrams.contains(bg)) bigramIntersection++;
+
+            int bigramIntersect = 0;
+            for (Map.Entry<String, Integer> entry : entityBigrams.entrySet()) {
+                if (targetBigrams.containsKey(entry.getKey())) {
+                    bigramIntersect += Math.min(entry.getValue(), targetBigrams.get(entry.getKey()));
+                }
             }
-            bigramDice = 2.0 * bigramIntersection / (entityBigrams.size() + targetBigrams.size());
+            bigramDice = 2.0 * bigramIntersect / ((entityLen - 1) + (targetLen - 1));
         }
 
-        // 4. 完整连续包含额外加成 (若 targetStr 完整连续包含 entityStr，加成 0.15)
-        double exactContainBonus = (lcsLen == entityStr.length()) ? 0.15 : 0.0;
+        // 5. 实体包含加成 与 精确编号后缀截断惩罚
+        double containBonus = 0.0;
+        double suffixPenalty = 0.0;
+        int idx = targetStr.indexOf(entityStr);
+        if (idx >= 0) {
+            int endIdx = idx + entityLen;
+            if (endIdx < targetLen) {
+                char nextChar = targetStr.charAt(endIdx);
+                // 关键修复：仅针对 ASCII 字母(A-Za-z)、数字(0-9)、#，不要用 Character.isLetter() 把汉字误伤
+                boolean isCodeSuffix = (nextChar >= '0' && nextChar <= '9') ||
+                        (nextChar >= 'a' && nextChar <= 'z') ||
+                        (nextChar >= 'A' && nextChar <= 'Z') ||
+                        (nextChar == '#');
+                if (isCodeSuffix) {
+                    suffixPenalty = 0.15; // 命中更短前缀，扣分
+                } else {
+                    containBonus = 0.15;  // 实体在句子中完整连续出现，加分
+                }
+            } else {
+                containBonus = 0.15;
+            }
+        }
 
-        // 综合得分：LCS连续覆盖(50%) + 二元组Dice(30%) + 字符Dice(20%) + 完整包含加成
-        double score = 0.50 * lcsCoverage + 0.30 * bigramDice + 0.20 * charDice + exactContainBonus;
-        return Math.min(1.0, score);
+        // 综合得分计算
+        double score = 0.50 * entityCoverage + 0.30 * bigramDice + 0.20 * charMatchRate + containBonus - suffixPenalty;
+
+        return Math.max(0.0, Math.min(0.98, score));
     }
 
     //计算两个字符串的最长公共子串长度（动态规划）
@@ -170,7 +206,7 @@ public class CommonTool {
         }
 
         List<Map> scored = mapList.parallelStream()
-                .filter(map -> type == null || type.isEmpty() || type.equals(map.get("type")))
+                .filter(map -> type == null || type.isEmpty() || type.equals(map.get("type")) || map.get("type").toString().contains(type))
                 .map(map -> {
                     String compareValue = map.get("name").toString();
                     double similarity = mixedSimilarity2(compareValue, targetStr);

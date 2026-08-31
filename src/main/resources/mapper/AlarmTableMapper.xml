@@ -66,9 +66,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             </if>
         </where>
         ORDER BY lasttouchtime DESC
-        <if test="request.AI != null and request.AI==true">
-            LIMIT 100
-        </if>
     </select>
 
 </mapper>
