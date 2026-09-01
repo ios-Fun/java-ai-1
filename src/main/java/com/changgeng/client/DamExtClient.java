@@ -49,6 +49,15 @@ public interface DamExtClient {
     @PostMapping("/graph/getLoadRateIndicatorByUnitId")
     Map getLoadRateIndicatorByUnitId(@RequestParam Integer unitId);
 
+    @PostMapping("/graph/getDefectModeByTagList")
+    List getDefectModeByTagList(@RequestBody List<Long> tagList);
+
+    @PostMapping("/graph/getBasicTagListByShadowFeatureId")
+    List<Map> getBasicTagListByShadowFeatureId(@RequestBody Long shadowFeatureId);
+
+    @PostMapping("/graph/getAllGraph")
+    List<Map> getAllGraph(@RequestParam String deviceName);
+
     @PostMapping("/graph/getAssetInfos")
     List<Map> getAssetInfos(@RequestBody Map tagId);
 }

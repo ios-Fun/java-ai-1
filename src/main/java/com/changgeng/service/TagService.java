@@ -2,13 +2,20 @@ package com.changgeng.service;
 
 
 import com.alibaba.excel.util.StringUtils;
+import com.changgeng.client.DamCoreClient;
 import com.changgeng.client.DamExtClient;
 import com.changgeng.common.result.Result;
 import com.changgeng.controller.CommonController;
 import com.changgeng.handler.InfluxDBServiceJR;
 import com.changgeng.mapper.IndicatorEgulationsMapper;
+import com.changgeng.pojo.GraphTriple;
+import com.changgeng.pojo.IdObj;
 import com.changgeng.mapper.ModelingConfigMapper;
 import com.changgeng.pojo.IndicatorEgulations;
+import com.changgeng.tool.InstanceQueryParam;
+import com.changgeng.tree.MultiTreeNode;
+import com.changgeng.tree.TreeNodeService;
+import com.changgeng.tree.TreeNodeValue;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,10 +34,19 @@ public class TagService {
     DamExtClient damExtClient;
 
     @Autowired
+    DamCoreClient damCoreClient;
+
+    @Autowired
     InfluxDBServiceJR influxDBServiceJR;
 
     @Autowired
     CommonController commonController;
+
+    @Autowired
+    TreeNodeService treeNodeService;
+
+    @Autowired
+    FaultGraphBuilder faultGraphBuilder;
 
     @Autowired
     private IndicatorEgulationsMapper indicatorEgulationsMapper;
@@ -391,6 +407,172 @@ public class TagService {
         finalResult.put("totalDuration", totalDuration);
         finalResult.put("result", result);
         return Result.success(finalResult);
+    }
+
+    public String getGraphByDefectName(String defectName) {
+        Result defectMode = commonController.matchForBest(defectName, 0, "故障模式");
+        List data = (List) defectMode.getData();
+        Long id = null;
+        if (data != null && !data.isEmpty()) {
+            id = Long.valueOf(((Map) data.get(0)).get("id").toString());
+        }
+        else {
+            return "未能成功匹配到对应的故障推导图";
+        }
+        String s = defectGraphShow(id);
+        return s;
+
+    }
+
+    public String getGraphByTagList(List<Integer> tagLists) {
+        return "未能成功匹配到对应的故障推导图";
+    }
+
+    String defectGraphShow(Long defectId) {
+        GraphTriple graphTriple = faultGraphBuilder.buildGraph(defectId);
+        String llmPromptString = faultGraphBuilder.toLlmPromptString(graphTriple);
+        return llmPromptString;
+//        String[] res = new String[2];
+//        IdObj debutObj = new IdObj();
+//        debutObj.setId(defectId);
+//        debutObj.setType("Model");
+//        Map map = (Map) damCoreClient.debut(debutObj).get("data");
+//        Integer id = (Integer) map.get("id");
+//        MultiTreeNode root = new MultiTreeNode();
+//        TreeNodeValue tagTreeNodeValue = new TreeNodeValue();
+//        tagTreeNodeValue.setValue(map);
+//        tagTreeNodeValue.setType(0);
+//        root.setData(tagTreeNodeValue);
+//        root.setChildren(getTreeNodeChildren(Long.valueOf(id)));
+//        // 按层次遍历多叉树
+//        StringBuilder sb = new StringBuilder();
+//        sb.append("## 该设备关联的：故障模式、特征、测点层级图如下，其中测点是传感器的实际值。");
+//        sb.append("\n");
+//        StringBuilder sbReturn =  printMarkdownTree(root, 0);
+//        if (sbReturn != null) {
+//            sb.append(sbReturn);
+//        }
+//        res[0] = sb.toString();
+//        StringBuilder tagsStringBuilder = new StringBuilder();
+//        // 获取测点
+//        List list = treeNodeService.getTags(root);
+//        Set<String> set = new HashSet<>(list);
+//        int index = 0;
+//        Iterator<String> it = set.iterator();
+//        while (it.hasNext()) {
+//            String item = it.next();
+//            tagsStringBuilder.append(item);
+//            if (index != set.size() - 1) {
+//                tagsStringBuilder.append(",");
+//            }
+//            // System.out.println("下标：" + index + "，值：" + item);
+//            index++;
+//        }
+//        sb.append("|||").append(tagsStringBuilder);
+//        return sb.toString();
+    }
+
+    public StringBuilder printMarkdownTree(MultiTreeNode node, int level) {
+        StringBuilder indentSb = new StringBuilder();
+        if (node == null) return indentSb;
+
+        if (node.getData().getType() != null && node.getData().getType() == 3) {
+            for (MultiTreeNode child : node.children) {
+                // 判断试试特征和测点
+                indentSb.append(printMarkdownTree(child, level));
+            }
+            return indentSb;
+        }
+
+
+        for (int i = 0; i < level; i++) {
+            indentSb.append("  ");
+        }
+        String indent = indentSb.toString();
+        Map value = node.data.getValue();
+        String name = (String) (value.get("name") == null ? value.get("名称") : value.get("name"));
+        log.info("{}- {}{}", indent, getTypeStr(node.getData().getType()), name);
+        indentSb.append(String.format("%s- %s%s", indent, getTypeStr(node.getData().getType()), name));
+        indentSb.append("\n");
+        if (node.children == null) {
+            return indentSb;
+        }
+        for (MultiTreeNode child : node.children) {
+            // 判断试试特征和测点
+
+            indentSb.append(printMarkdownTree(child, level + 1));
+        }
+        return indentSb;
+    }
+
+    private String getTypeStr(Integer type){
+        if (type == null) {
+            return "";
+        }
+        // 0--故障模式，1--特征，2--测点， 3--操作符
+        String typeStr = "";
+        if (type == 0) {
+            typeStr = "故障模式";
+        } else if (type == 1) {
+            typeStr = "特征";
+        } else if (type == 2) {
+            typeStr = "测点";
+        }
+        return String.format("[%s]", typeStr);
+    }
+
+    public List getTreeNodeChildren(Long  id) {
+
+        List children = new ArrayList<>();
+        IdObj unfoldObj = new IdObj();
+        unfoldObj.setId(Long.valueOf(id));
+        List<Object> data1 = (List<Object>) damCoreClient.unfold(unfoldObj).get("data");
+        for(Object obj: data1) {
+            Map<String, Object> data = (Map<String, Object>) obj;
+            // naryTreeNode.setValue(data);
+            MultiTreeNode node = new MultiTreeNode();
+            TreeNodeValue treeNodeValue = new TreeNodeValue();
+            treeNodeValue.setValue(data);
+            node.setData(treeNodeValue);
+            Integer itemId = (Integer) data.get("id");
+            List<String> types = (List<String>) data.get("label");
+            if (types.get(0).equals("特征")) {
+                treeNodeValue.setType(1);
+                // 获取测点--有些问题
+                List<Map> items = damExtClient.getTags(itemId);
+                List tagChildren = new ArrayList();
+                for (Map map : items) {
+                    MultiTreeNode tagNode = new MultiTreeNode();
+                    TreeNodeValue tagTreeNodeValue = new TreeNodeValue();
+                    tagTreeNodeValue.setType(2);
+                    tagTreeNodeValue.setValue(map);
+
+                    tagNode.setData(tagTreeNodeValue);
+//                    tagNode.setType(2);
+//                    tagNode.setValue(map);
+                    tagChildren.add(tagNode);
+                }
+                node.setChildren(tagChildren);
+            }else if (types.get(0).equals("故障模式")) {
+                treeNodeValue.setType(0);
+                node.setChildren(getTreeNodeChildren(Long.valueOf(itemId)));
+            }else if (types.get(1).equals("FaultOperator")) {
+                treeNodeValue.setType(3);
+                node.setChildren(getTreeNodeChildren(Long.valueOf(itemId)));
+            }
+            else {
+                node.setChildren(getTreeNodeChildren(Long.valueOf(itemId)));
+            }
+
+            children.add(node);
+        }
+        return children;
+    }
+
+    public String getAllGraph(String deviceName) {
+        List<Map> res = damExtClient.getAllGraph(deviceName);
+        List<String> collect = res.stream().map(one -> one.get("name").toString()).collect(Collectors.toList());
+        return collect.toString();
     }
 
     public Result getTagsOfModel(Integer tagId) {

@@ -53,6 +53,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="request.tagId != null">
                 AND tag_id = #{request.tagId}
             </if>
+            <if test="request.tagIds != null and !request.tagIds.isEmpty()">
+                AND tag_id in
+                <foreach collection="request.tagIds" item="item" index="index" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
             <if test="request.monitorPointId != null">
                 AND monitor_point_id = #{request.monitorPointId}
             </if>

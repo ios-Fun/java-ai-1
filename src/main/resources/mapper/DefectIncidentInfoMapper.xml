@@ -65,13 +65,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectDefectIncidentIdListByUnit" resultMap="BaseResultMap">
         SELECT DISTINCT ON (dii.incident_id)
         dii.*,
+        di.theunitinstanceid,
         di.closed,
         di.maxdefectseverityname,
         di.firstoccureddatetime
         FROM defect_incident_info dii
         JOIN defectincident di ON di.defectincidentid = dii.incident_id
         WHERE dii.type NOT IN ('特征', '测点', '故障模式')
-        AND di.theunitinstanceid = #{unitId}
+        <if test="unitId != null and unitId != ''">
+            AND di.theunitinstanceid = #{unitId}
+        </if>
         AND (dii.last_time BETWEEN #{startDate} AND #{endDate}
         OR di.firstoccureddatetime BETWEEN #{startDate} AND #{endDate})
         <if test="closed != null">

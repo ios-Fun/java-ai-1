@@ -247,7 +247,10 @@ public class UnitController {
     @RequestMapping("/selectIncidents")
     public Result getUnitIncidentMap(@RequestBody UnitHealthyRequest request) {
         String unitName = request.getUnitName();
-        List<Map> allUnits = unitService.matchUnits(unitName);
+        List<Map> allUnits = new ArrayList<>();
+        if (unitName != null) {
+            allUnits = unitService.matchUnits(unitName);
+        }
         Date[] dates = DateTool.getStartAndEndTime(request);
         Boolean closed = request.getClosed();
 

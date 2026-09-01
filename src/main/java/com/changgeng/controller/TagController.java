@@ -366,5 +366,28 @@ public class TagController {
         return tagService.getTagsOfModel(tagId);
     }
 
+    @RequestMapping("/getGraphByTagList")
+    public Result getGraphByTagList(@RequestParam(required = false) List<Integer> tagLists, @RequestParam(required = false) String defectName,
+                                    @RequestParam(required = false) String deviceName) {
+        // 两个参数都为空时的防御性校验
+        if ((tagLists == null || tagLists.isEmpty()) && StringUtils.isBlank(defectName) && StringUtils.isBlank(deviceName)) {
+            return Result.error(400, "tagList,defectName,deviceName 至少传入一个");
+        }
+        String result = "未能成功匹配到对应的故障推导图";
+        if (!StringUtils.isBlank(defectName)) {
+            result = tagService.getGraphByDefectName(defectName);
+        }
+        else {
+            if (tagLists != null && !tagLists.isEmpty()) {
+                result = tagService.getGraphByTagList(tagLists);
+            }
+            else if (deviceName != null && !deviceName.isEmpty()){
+                result = tagService.getAllGraph(deviceName);
+            }
+        }
+
+        return Result.success(result);
+    }
+
 
 }

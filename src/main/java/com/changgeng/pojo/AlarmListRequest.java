@@ -3,6 +3,7 @@ package com.changgeng.pojo;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 public class AlarmListRequest {
@@ -15,6 +16,7 @@ public class AlarmListRequest {
     private String dataType;
     private String currentStatusName;
     private Integer tagId;
+    private List<Integer> tagIds;
     private Integer monitorPointId;
     private Integer unitId;
     private Boolean closed;

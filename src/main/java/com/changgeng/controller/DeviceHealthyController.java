@@ -10,13 +10,10 @@ import com.changgeng.mapper.DefectIncidentInfoMapper;
 import com.changgeng.mapper.DefectIncidentMapper;
 import com.changgeng.model.DefectIncident;
 import com.changgeng.model.DefectIncidentInfo;
-import com.changgeng.pojo.AlarmDefects;
-import com.changgeng.pojo.DeviceRequest;
-import com.changgeng.pojo.IdObj;
-import com.changgeng.pojo.UnitHealthyRequest;
-import com.changgeng.pojo.UnitIncidentDTO;
+import com.changgeng.pojo.*;
 import com.changgeng.service.DeviceHealthyService;
 import com.changgeng.service.TagService;
+import com.changgeng.service.UnitService;
 import com.changgeng.tool.DateTool;
 import com.changgeng.tree.MultiTreeNode;
 import com.changgeng.tree.TreeNodeService;
@@ -70,6 +67,9 @@ public class DeviceHealthyController {
     DamSdkClient damSdkClient;
     @Autowired
     DamCoreClient damCoreClient;
+
+    @Autowired
+    UnitService unitService;
 
 
 
@@ -289,7 +289,7 @@ public class DeviceHealthyController {
      * 测点的趋势图信息，应该是多个测点，对应不同的时间，包含了实际值，估计值
      * @param cached_TagsTrendPara 上一个mcp方法缓存的
      * @return
-     */
+//     */
     @RequestMapping("/device/tagsTrend")
     public String tagsTrend(@RequestBody List<Object> cached_TagsTrendPara) {
         log.info("tagsTrend: {}", cached_TagsTrendPara);
@@ -610,19 +610,17 @@ public class DeviceHealthyController {
      */
     @RequestMapping("/device/healthy/v3")
     public Map deivceHealthyV3(@RequestBody DeviceRequest deviceRequest) {
-        Map map = new HashMap();
+        Map map = new LinkedHashMap();
         String deviceName = deviceRequest.getDevice();
         log.info("deviceName: {}", deviceName);
         Date[] dates =DateTool.getStartAndEndTime(deviceRequest);
         // 查询诊断单
         List<DefectIncidentInfo> list = defectIncidentInfoMapper.selectDefectIncidentIdListByName(deviceName, dates[0], dates[1]);
-        // 给大模型显示的
-        String llmMsg = list.size() == 0 ? "当前设备无诊断单": String.format("共%d条诊断单记录", list.size());
-        map.put("llmMsg", llmMsg);
         List<Integer> defectIds = new ArrayList<>();
         for (DefectIncidentInfo defectIncidentInfo: list) {
             defectIds.add(defectIncidentInfo.getIncidentId());
         }
+        map.put("incidentId", defectIds);
         map.put("cached_defectIds", defectIds);
 
         List<Map> resultMap = new ArrayList<>();
@@ -661,6 +659,20 @@ public class DeviceHealthyController {
             }
         }
         map.put("cached_TagsTrendPara", resultMap);
+
+        List<Map> devices = tagService.getAllTags("设备", deviceName, "模拟量");
+        List<Integer> tagIds = devices.stream().map(one -> Integer.valueOf(one.get("tagId").toString())).collect(Collectors.toList());
+        AlarmListRequest alarmListRequest = new AlarmListRequest();
+        alarmListRequest.setTagIds(tagIds);
+        alarmListRequest.setStartTime(dates[0]);
+        alarmListRequest.setEndTime(dates[1]);
+        Map<String, Object> alarmListStatistics = unitService.getAlarmListStatistics(alarmListRequest);
+        // 给大模型显示的
+//        String llmMsg = list.size() == 0 ? "当前设备无诊断单": String.format("共%d条诊断单记录, 诊断单id为：%s;", list.size(), defectIds.toString());
+//        llmMsg += alarmListStatistics.size() == 0 ? "当前设备无报警单": String.format("报警单的统计情况如下： %s;",  alarmListStatistics.toString());
+//        map.put("llmMsg", llmMsg);
+        map.put("alarmListStatistics", alarmListStatistics);
+
         return map;
     }
 

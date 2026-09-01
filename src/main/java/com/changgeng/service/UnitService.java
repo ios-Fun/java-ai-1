@@ -7,6 +7,7 @@ import com.changgeng.mapper.DefectIncidentInfoMapper;
 import com.changgeng.mapper.DefectIncidentMapper;
 import com.changgeng.model.DefectIncidentInfo;
 import com.changgeng.pojo.*;
+import com.changgeng.tool.InstanceQueryParam;
 import com.changgeng.tree.TreeNodePath;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,6 +114,20 @@ public class UnitService {
      * @return 每个机组的诊断单列表，每项含 unitId、unitName、incidents（完整 DefectIncidentInfo）
      */
     public List<Map<String, Object>> getUnitIncidentList(List<Map> matchedUnits, Date[] dates, Boolean closed) {
+        if (matchedUnits == null || matchedUnits.isEmpty()) {
+            List<Map<String, Object>> res = new ArrayList<>();
+            Map<String, Object> resMap = new LinkedHashMap<>();
+            List<DefectIncidentInfo> incidents = defectIncidentInfoMapper.selectDefectIncidentIdListByUnit(null, dates[0], dates[1], closed);
+            if (incidents.isEmpty()) return null;
+            resMap.put("unitId", incidents.stream().map(DefectIncidentInfo::getUnit).findAny().get());
+            InstanceQueryParam instanceQueryParam = new InstanceQueryParam();
+            instanceQueryParam.setNodeId(Long.valueOf(resMap.get("unitId").toString()));
+            Map map = damCoreClient.querySelectIgnoreDistanceByCondition(instanceQueryParam);
+            String string = ((Map) map.get("properties")).get("名称").toString();
+            resMap.put("unitName", string);
+            resMap.put("incidents", incidents);
+            return res;
+        }
         return matchedUnits.stream()
                 .filter(map -> (Boolean) map.get("matched") != false)
                 .map(map -> {
