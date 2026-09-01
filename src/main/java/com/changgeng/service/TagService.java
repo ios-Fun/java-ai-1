@@ -7,6 +7,7 @@ import com.changgeng.common.result.Result;
 import com.changgeng.controller.CommonController;
 import com.changgeng.handler.InfluxDBServiceJR;
 import com.changgeng.mapper.IndicatorEgulationsMapper;
+import com.changgeng.mapper.ModelingConfigMapper;
 import com.changgeng.pojo.IndicatorEgulations;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ public class TagService {
 
     @Autowired
     private IndicatorEgulationsMapper indicatorEgulationsMapper;
+
+    @Autowired
+    private ModelingConfigMapper modelingConfigMapper;
 
     /** 统计采样间隔(秒)，1分钟一个点 */
     private static final int STATISTIC_INTERVAL = 60;
@@ -387,6 +391,27 @@ public class TagService {
         finalResult.put("totalDuration", totalDuration);
         finalResult.put("result", result);
         return Result.success(finalResult);
+    }
+
+    public Result getTagsOfModel(Integer tagId) {
+        List<Map> tagInfo = getTagInfos(tagId, null, null, null);
+        if (tagInfo.isEmpty()) return Result.success("传入测点信息无效");
+        String tagName = tagInfo.get(0).get("编码").toString();
+        List<Map> tagsOfModel = modelingConfigMapper.getTagsOfModel(tagName);
+        Map<Long, List<String>> result = tagsOfModel.stream()
+                .collect(Collectors.groupingBy(row -> ((Number) row.get("modeling_id")).longValue(),
+                        Collectors.mapping(row -> (String) row.get("tagname"),
+                                Collectors.collectingAndThen(
+                                        Collectors.toList(),
+                                        list -> list.stream().distinct().collect(Collectors.toList())
+                                )
+                        )
+                ));
+        return Result.success(result);
+    }
+
+    public List<Map> getAssetInfos(Map tagIds) {
+        return damExtClient.getAssetInfos(tagIds);
     }
 
     /** 时序统计中间结果 */

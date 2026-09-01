@@ -42,41 +42,35 @@ public class UnitService {
 
     public List<?> getAlarmList(AlarmListRequest request) {
         List<AlarmTable> alarmList = alarmTableMapper.selectAlarmList(request);
+        List<Long> alarmTagIds = alarmList.stream().map(AlarmTable::getTagId).distinct().collect(Collectors.toList());
         if(request.getAssetId() != null && request.getAssetId() != 0){
             Map<String, Object> params = new HashMap<>();
             params.put("nodeIdList", Arrays.asList(request.getAssetId()));
             Map result = damCoreClient.queryNodeByListNodeId(params);
             String assetName = ((Map)(((List<Map>) result.get("data")).get(0)).get("properties")).get("名称").toString();
-            List<Integer> tagIds;
             if(assetName != null && !assetName.isEmpty()){
-                tagIds = tagService.getAllTags("设备",assetName,null).stream()
-                        .map(m ->  (Integer) m.get("tagId"))
+                alarmTagIds = tagService.getAllTags("设备",assetName,null).stream()
+                        .filter(m -> m.get("tagId") != null)
+                        .map(m -> Long.valueOf(m.get("tagId").toString()))
                         .collect(Collectors.toList());
+
             } else {
-                tagIds = new ArrayList<>();
+                alarmTagIds = new ArrayList<>();
             }
-            if(tagIds != null && !tagIds.isEmpty()){
+            if(alarmTagIds != null && !alarmTagIds.isEmpty()){
+                List<Long> finalAlarmTagIds = alarmTagIds;
                 alarmList = alarmList.stream()
-                        .filter(alarm -> tagIds.contains(alarm.getTagId().intValue()))
+                        .filter(alarm -> finalAlarmTagIds.contains(alarm.getTagId()))
                         .collect(Collectors.toList());
             }
         }
 
-        if (alarmList.size() <= 20) return alarmList;
-        // >20 qifei
-        List<Integer> assetNumbers = alarmList.stream()
-                .map(AlarmTable::getAssetNumber)
-                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
-
         Map<String, Object> params = new HashMap<>();
-        params.put("nodeIdList", assetNumbers);
-        Map result = damCoreClient.queryNodeByListNodeId(params);
-        List<Map<String, Object>> nodes = (List<Map<String, Object>>) result.get("data");
-        Map<String, String> nameMap = nodes == null ? Collections.emptyMap() : nodes.stream()
-                .collect(Collectors.toMap(
-                node -> String.valueOf(node.get("id")),
-                node -> String.valueOf(((Map<?, ?>) node.get("properties")).get("名称")),
-                (a, b) -> a));
+        params.put("tagIds", alarmTagIds);
+        List<Map> allResults = tagService.getAssetInfos(params);
+
+        Map<String, String> assetMap = allResults.stream()
+                    .collect(Collectors.toMap(m -> m.get("tagId").toString(), m -> m.get("assetName").toString()));
 
         return alarmList.parallelStream()
                 .map(o -> {
@@ -85,8 +79,7 @@ public class UnitService {
                     m.put("tagSourceName", o.getTagSourceName());
                     m.put("firstTouchTime", o.getFirstTouchTime());
                     m.put("lastTouchTime", o.getLastTouchTime());
-                    m.put("subSystemId", o.getAssetNumber());
-                    m.put("subSystemName", nameMap.get(o.getAssetNumber().toString()));
+                    m.put("assetName", assetMap.get(o.getTagId().toString()));
                     m.put("dataType", o.getDataType());
                     m.put("tagId", o.getTagId());
                     m.put("closed", o.getClosed());

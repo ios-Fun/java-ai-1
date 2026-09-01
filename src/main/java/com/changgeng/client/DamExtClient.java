@@ -2,6 +2,7 @@ package com.changgeng.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
@@ -47,4 +48,7 @@ public interface DamExtClient {
 
     @PostMapping("/graph/getLoadRateIndicatorByUnitId")
     Map getLoadRateIndicatorByUnitId(@RequestParam Integer unitId);
+
+    @PostMapping("/graph/getAssetInfos")
+    List<Map> getAssetInfos(@RequestBody Map tagId);
 }

@@ -358,5 +358,13 @@ public class TagController {
 
     }
 
+    @RequestMapping("/getTagsOfModel")
+    public Result getTagsOfModel(
+            @RequestParam Integer tagId
+    ) {
+        log.info("getTagsOfModel - tagId: {}", tagId);
+        return tagService.getTagsOfModel(tagId);
+    }
+
 
 }
