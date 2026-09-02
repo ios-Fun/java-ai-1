@@ -7,6 +7,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <id column="data_id" jdbcType="INTEGER" property="dataId" />
         <result column="name" jdbcType="VARCHAR" property="name" />
         <result column="severity" jdbcType="DOUBLE" property="severity" />
+        <result column="theunitinstanceid" jdbcType="INTEGER" property="unitId" />
         <result column="max_severity" jdbcType="DOUBLE" property="maxSeverity" />
         <result column="real_severity" jdbcType="DOUBLE" property="realSeverity" />
         <result column="last_time" jdbcType="TIMESTAMP" property="lastTime" />

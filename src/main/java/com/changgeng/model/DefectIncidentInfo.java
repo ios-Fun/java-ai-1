@@ -14,6 +14,7 @@ public class DefectIncidentInfo {
     Date lastTime;
     String type;
     Long nodeId;
+    Integer unitId;
     String level;
     Integer incidentId;
     Date maxTime;
