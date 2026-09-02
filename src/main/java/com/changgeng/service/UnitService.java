@@ -54,7 +54,6 @@ public class UnitService {
                         .filter(m -> m.get("tagId") != null)
                         .map(m -> Long.valueOf(m.get("tagId").toString()))
                         .collect(Collectors.toList());
-
             } else {
                 alarmTagIds = new ArrayList<>();
             }
@@ -282,24 +281,65 @@ public class UnitService {
 
     public Map<String, Object> getAlarmListStatistics(AlarmListRequest request) {
         List<AlarmTable> alarmList = alarmTableMapper.selectAlarmList(request);
+        List<Long> alarmTagIds = alarmList.stream().map(AlarmTable::getTagId).distinct().collect(Collectors.toList());
+
         if(request.getAssetId() != null && request.getAssetId() != 0){
             Map<String, Object> params = new HashMap<>();
             params.put("nodeIdList", Arrays.asList(request.getAssetId()));
             Map result = damCoreClient.queryNodeByListNodeId(params);
             String assetName = ((Map)(((List<Map>) result.get("data")).get(0)).get("properties")).get("名称").toString();
-            List<Integer> tagIds;
             if(assetName != null && !assetName.isEmpty()){
-                tagIds = tagService.getAllTags("设备",assetName,null).stream()
-                        .map(m ->  (Integer) m.get("tagId"))
+                alarmTagIds = tagService.getAllTags("设备",assetName,null).stream()
+                        .filter(m -> m.get("tagId") != null)
+                        .map(m -> Long.valueOf(m.get("tagId").toString()))
                         .collect(Collectors.toList());
             } else {
-                tagIds = new ArrayList<>();
+                alarmTagIds = new ArrayList<>();
             }
-            if(tagIds != null && !tagIds.isEmpty()){
+            if(alarmTagIds != null && !alarmTagIds.isEmpty()){
+                List<Long> finalAlarmTagIds = alarmTagIds;
                 alarmList = alarmList.stream()
-                        .filter(alarm -> tagIds.contains(alarm.getTagId().intValue()))
+                        .filter(alarm -> finalAlarmTagIds.contains(alarm.getTagId()))
                         .collect(Collectors.toList());
             }
+        }
+        Map<String, Object> params = new HashMap<>();
+        params.put("tagIds", alarmTagIds);
+        List<Map> allResults = tagService.getAssetInfos(params);
+        Map<String, String> assetMap = allResults.stream()
+                .collect(Collectors.toMap(m -> m.get("tagId").toString(), m -> m.get("assetName").toString()));
+        Boolean groupByAssetName = request.getGroupByAssetName();
+        Map<String, Object> groupByResult;
+        if(groupByAssetName != null && groupByAssetName){
+            groupByResult = alarmList.stream()
+                .collect(Collectors.groupingBy(
+                    alarm -> String.valueOf(assetMap.get(alarm.getTagId().toString())==null?"未挂载在设备下测点报警":assetMap.get(alarm.getTagId().toString())),
+                    Collectors.collectingAndThen(
+                        Collectors.toList(),
+                        alarms -> {
+                            Map<String, Object> result = new HashMap<>();
+                            result.put("count", alarms.size());
+                            // 用 LinkedHashSet 去重
+                            Set<String> nameSet = new LinkedHashSet<>();
+                            for (AlarmTable a : alarms) {
+                                String type = a.getAlarmType() != null ? a.getAlarmType() : "";
+                                String desc = a.getTagDescription() != null ? a.getTagDescription() : "";
+                                nameSet.add(type + "-" + desc);
+                            }
+                            result.put("name", new ArrayList<>(nameSet));
+                            return result;
+                        }
+                    )
+                ));
+            return groupByResult.entrySet().stream()
+                    .sorted((e1, e2) -> {
+                        int c1 = (int) ((Map<String, Object>) e1.getValue()).get("count");
+                        int c2 = (int) ((Map<String, Object>) e2.getValue()).get("count");
+                        return Integer.compare(c2, c1); // 降序
+                    })
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (old, newv) -> old,
+                            LinkedHashMap::new
+                    ));
         }
 
         Map<String, Object> alarmListRes = new LinkedHashMap<>();

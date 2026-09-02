@@ -21,4 +21,5 @@ public class AlarmListRequest {
     private Integer unitId;
     private Boolean closed;
     private Boolean AI=true;
+    private Boolean groupByAssetName;
 }
