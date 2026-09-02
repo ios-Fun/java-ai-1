@@ -119,13 +119,22 @@ public class UnitService {
             Map<String, Object> resMap = new LinkedHashMap<>();
             List<DefectIncidentInfo> incidents = defectIncidentInfoMapper.selectDefectIncidentIdListByUnit(null, dates[0], dates[1], closed);
             if (incidents.isEmpty()) return null;
-            resMap.put("unitId", incidents.stream().map(DefectIncidentInfo::getUnit).findAny().get());
-            InstanceQueryParam instanceQueryParam = new InstanceQueryParam();
-            instanceQueryParam.setNodeId(Long.valueOf(resMap.get("unitId").toString()));
-            Map map = damCoreClient.querySelectIgnoreDistanceByCondition(instanceQueryParam);
-            String string = ((Map) map.get("properties")).get("名称").toString();
-            resMap.put("unitName", string);
-            resMap.put("incidents", incidents);
+            List<Integer> collect = incidents.stream().map(DefectIncidentInfo::getUnitId).collect(Collectors.toList());
+            for (Integer unitId : collect) {
+                resMap.put("unitId", unitId);
+                InstanceQueryParam instanceQueryParam = new InstanceQueryParam();
+                instanceQueryParam.setNodeId(Long.valueOf(unitId));
+                Map map = damCoreClient.querySelectIgnoreDistanceByCondition(instanceQueryParam);
+                List data = (List) map.get("data");
+                if (data != null && !data.isEmpty()) {
+                    String string = ((Map) ((Map) data.get(0)).get("properties")).get("名称").toString();
+                    resMap.put("unitName", string);
+                    resMap.put("incidents", incidents);
+                    res.add(resMap);
+                }
+            }
+
+
             return res;
         }
         return matchedUnits.stream()
@@ -192,7 +201,7 @@ public class UnitService {
             .sorted(Comparator.comparingInt(m -> levelRank((String) m.get("level"))))
             .collect(Collectors.toList());
 
-            List<Map> assets = getItems((Integer) unitMap.get("unitId"), "设备");
+            List<Map> assets = getItems(Integer.valueOf(unitMap.get("unitId").toString()), "设备");
             Double unitHealthy = 100.0;
             AtomicInteger assetIndicidentCount = new AtomicInteger();
             if (!assets.isEmpty() && !incidents.isEmpty()){
