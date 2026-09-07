@@ -424,8 +424,22 @@ public class TagService {
 
     }
 
-    public String getGraphByTagList(List<Integer> tagLists) {
-        return "未能成功匹配到对应的故障推导图";
+    public String getGraphByTagList(List<Long> tagLists) {
+        List defectModeByTagList = damExtClient.getDefectModeByTagList(tagLists);
+        StringBuilder res = new StringBuilder();
+        for (Object obj : defectModeByTagList) {
+            Map obj1 = (Map) obj;
+            Long id = Long.valueOf(obj1.get("id").toString());
+            String name = obj1.get("name").toString();
+            res.append("故障模式-[").append(name).append("]详细内容如下：\n");
+            GraphTriple graphTriple = faultGraphBuilder.buildGraph(id);
+            String llmPromptString = faultGraphBuilder.toLlmPromptString(graphTriple);
+            res.append(llmPromptString).append("\n");
+        }
+        if (res.toString().isEmpty()) {
+            res.append("未能成功匹配到对应的故障推导图");
+        }
+        return res.toString();
     }
 
     String defectGraphShow(Long defectId) {

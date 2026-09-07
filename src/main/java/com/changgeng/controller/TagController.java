@@ -367,7 +367,7 @@ public class TagController {
     }
 
     @RequestMapping("/getGraphByTagList")
-    public Result getGraphByTagList(@RequestParam(required = false) List<Integer> tagLists, @RequestParam(required = false) String defectName,
+    public Result getGraphByTagList(@RequestParam(required = false) List<Long> tagLists, @RequestParam(required = false) String defectName,
                                     @RequestParam(required = false) String deviceName) {
         // 两个参数都为空时的防御性校验
         if ((tagLists == null || tagLists.isEmpty()) && StringUtils.isBlank(defectName) && StringUtils.isBlank(deviceName)) {
