@@ -43,8 +43,21 @@ public class DateTool {
                 dates[0] = startDate;
                 dates[1] = endDate;
             }else {
-                startDate = convertStringToDate(deviceRequest.getStartTime());
-                endDate = convertStringToDate(deviceRequest.getEndTime());
+                try {
+                    startDate = convertStringToDate(deviceRequest.getStartTime());
+                    endDate = convertStringToDate(deviceRequest.getEndTime());
+                }
+                catch (Exception e) {
+                    endDate = new Date();
+                    ZoneId zone = ZoneId.systemDefault();
+                    startDate = Date.from(
+                            endDate.toInstant()
+                                    .atZone(zone)
+                                    .toLocalDate()
+                                    .atStartOfDay(zone)
+                                    .toInstant()
+                    );
+                }
                 dates[0] = startDate;
                 dates[1] = endDate;
             }
@@ -79,8 +92,21 @@ public class DateTool {
                 dates[0] = startDate;
                 dates[1] = endDate;
             }else {
-                startDate = convertStringToDate(request.getStartTime());
-                endDate = convertStringToDate(request.getEndTime());
+                try {
+                    startDate = convertStringToDate(request.getStartTime());
+                    endDate = convertStringToDate(request.getEndTime());
+                }
+                catch (Exception e) {
+                    endDate = new Date();
+                    ZoneId zone = ZoneId.systemDefault();
+                    startDate = Date.from(
+                            endDate.toInstant()
+                                    .atZone(zone)
+                                    .toLocalDate()
+                                    .atStartOfDay(zone)
+                                    .toInstant()
+                    );
+                }
                 dates[0] = startDate;
                 dates[1] = endDate;
             }
