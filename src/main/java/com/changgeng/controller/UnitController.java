@@ -363,4 +363,23 @@ public class UnitController {
     public Result getPathUnderUnit(@RequestBody PathUnderUnitRequest request) {
         return Result.success(unitService.getPathUnderUnit(request));
     }
+
+
+    /**
+     * 获取所有机组
+     * @return 机组id，机组名
+     */
+    @RequestMapping("/getUnitList")
+    public Result getUnitList() {
+        return Result.success(damExtClient.getUnitList());
+    }
+    /**
+     * 获取所有机组下所有指标
+     *   @param request 请求参数，包含：机组id
+     * @return 指标id，指标名
+     */
+    @RequestMapping("/getIndicators")
+    public Result getIndicators(@RequestParam Integer unitId) {
+        return Result.success(damExtClient.getIndicators(unitId));
+    }
 }

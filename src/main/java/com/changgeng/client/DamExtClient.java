@@ -32,7 +32,7 @@ public interface DamExtClient {
     @PostMapping("/graph/getSubSystemIdByTTS")
     Integer getSubSystemIdByTTS(@RequestParam Integer tagId, @RequestParam String tagName, @RequestParam String srcTagName);
 
-    @PostMapping("/graph/getInstanceList")
+        @PostMapping("/graph/getInstanceList")
     List<Map> getInstanceList();
 
     @PostMapping("/graph/getPathByNodeId")
@@ -60,4 +60,11 @@ public interface DamExtClient {
 
     @PostMapping("/graph/getAssetInfos")
     List<Map> getAssetInfos(@RequestBody Map tagId);
+
+
+
+    @PostMapping("/graph/getUnitList")
+    public List<Map> getUnitList();
+    @PostMapping("/graph/getIndicators")
+    public List<Map> getIndicators(@RequestParam Integer unitId);
 }
