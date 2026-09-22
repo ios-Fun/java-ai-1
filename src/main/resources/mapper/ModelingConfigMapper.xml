@@ -5,7 +5,7 @@
 <mapper namespace="com.changgeng.mapper.ModelingConfigMapper">
 
     <select id="getTagsOfModel" resultType="map">
-        SELECT modeling_id, tagname
+        SELECT distinct modeling_id, tagname
         FROM modelingconfig
         WHERE modeling_id IN (
             SELECT DISTINCT modeling_id FROM modelingconfig WHERE tagname = #{tagName}

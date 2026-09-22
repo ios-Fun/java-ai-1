@@ -8,6 +8,8 @@ import java.util.List;
 @Data
 public class AlarmListRequest {
     private String tagName;
+    private List<String> tagNames;
+    private String assetName;
     private String tagSourceName;
     private Date startTime;
     private Date endTime;

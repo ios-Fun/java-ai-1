@@ -35,6 +35,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="request.tagName != null and request.tagName != ''">
                 AND tagname = #{request.tagName}
             </if>
+            <if test="request.tagNames != null and !request.tagNames.isEmpty()">
+                AND tagname IN
+                <foreach collection="request.tagNames" item="item" index="index" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
             <if test="request.tagSourceName != null and request.tagSourceName != ''">
                 AND tag_source_name = #{request.tagSourceName}
             </if>
