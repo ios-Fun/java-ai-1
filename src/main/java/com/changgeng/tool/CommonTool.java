@@ -200,7 +200,7 @@ public class CommonTool {
     }
 
     // 获取前num个最佳匹配字符串
-    public static List<Map> getBestMatchingStr(List<Map> mapList, String targetStr, int num, String type) {
+    public static List<Map> getBestMatchingStr(List<Map> mapList, String targetStr, int num, String type, String model) {
         if (mapList == null || mapList.isEmpty()) {
             return Collections.emptyList();
         }
@@ -210,9 +210,18 @@ public class CommonTool {
                 .map(map -> {
                     String compareValue = map.get("name").toString();
                     double similarity = mixedSimilarity2(compareValue, targetStr);
+                    if (model != null) {
+                        if ("baseName".equals(model)) {
+                            if (map.get("baseName") != null) {
+                                String baseName = map.get("baseName").toString();
+                                similarity = mixedSimilarity2(baseName, targetStr) * 0.5 + similarity * 0.5;
+                            }
+                        }
+                    }
                     Map result = new HashMap<>();
                     result.put("id", map.get("id"));
                     result.put("name", map.get("name"));
+                    result.put("baseName", map.get("baseName"));
                     result.put("code", map.get("code"));
                     result.put("type", map.get("type"));
                     result.put("similarity", similarity);

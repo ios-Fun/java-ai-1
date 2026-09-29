@@ -99,7 +99,7 @@ public class TagService {
     public Map<String, Object> tagStatisticData(Integer tagId, String tagName, String srcTagName, String startTime, String endTime, String parentName) {
         List<Map> tagInfos;
         if (tagId == null && tagName == null && srcTagName == null) {
-            List<Map> parentNameMarched = (List<Map>) commonController.matchForBest(parentName, 1, null).getData();
+            List<Map> parentNameMarched = (List<Map>) commonController.matchForBest(parentName, 1, null, null).getData();
             tagInfos = damExtClient.getAllTags(parentNameMarched.get(0).get("type").toString(), parentNameMarched.get(0).get("name").toString(), null);
         } else {
             tagInfos = getTagInfos(tagId, tagName, srcTagName, null).stream()
@@ -410,7 +410,7 @@ public class TagService {
     }
 
     public String getGraphByDefectName(String defectName) {
-        Result defectMode = commonController.matchForBest(defectName, 0, "故障模式");
+        Result defectMode = commonController.matchForBest(defectName, 0, "故障模式", null);
         List data = (List) defectMode.getData();
         Long id = null;
         if (data != null && !data.isEmpty()) {

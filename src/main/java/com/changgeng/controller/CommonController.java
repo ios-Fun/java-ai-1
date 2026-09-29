@@ -38,13 +38,15 @@ public class CommonController {
      * 3. 基于混合杰卡德相似度（字符级 + 词级 + 基础杰卡德）对实例名称与输入字符串进行相似度计算；
      * 4. 按相似度降序排序，返回前num个最匹配的结果。
      * 5. num为0时，返回相似度最高的那一个（默认）
+     * 6. 当model为baseName时，会将原名称也纳入考察范围
      * @param matchString 用户输入的匹配字符串
      * @return 相似度最高的前num个实例信息（包含id、name、code、type、similarity）
      */
     @RequestMapping("/matchForBest")
     public Result matchForBest(@RequestParam String matchString,
                                @RequestParam(required = false, defaultValue = "0") int num,
-                               @RequestParam(required = false) String matchType ) {
+                               @RequestParam(required = false) String matchType,
+                               @RequestParam(required = false) String model) {
         instanceList = damExtClient.getInstanceList().stream()
                 .map(o -> {
                     String type = (String) o.get("type");
@@ -54,7 +56,7 @@ public class CommonController {
 
         for (String w : NOISE)
             matchString = matchString.replace(w, "");
-        List<Map> matchedStr =  CommonTool.getBestMatchingStr(instanceList,matchString, num, matchType);
+        List<Map> matchedStr =  CommonTool.getBestMatchingStr(instanceList,matchString, num, matchType, model);
         log.info("matchedResult: {}", matchedStr);
         return Result.success(matchedStr);
     }
